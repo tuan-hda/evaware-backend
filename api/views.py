@@ -10,6 +10,20 @@ class ProductView(generics.ListAPIView):
     serializer_class = ProductSerializer
 
 
+# class GetProduct(APIView):
+#     serializer_class = ProductSerializer
+#
+#     def get(self, request, product_id, format=None):
+#         if product_id is not None:
+#             product = Product.objects.filter(id=product_id)
+#             if len(product) > 0:
+#                 data = ProductSerializer(product[0]).data
+#                 return Response(data, status=status.HTTP_200_OK)
+#             return Response({'Product Not Found': 'Invalid Product Id'}, status=status.HTTP_404_NOT_FOUND)
+#
+#         return Response({'Bad Request': 'Id Parameter Not Found'}, status=status.HTTP_400_BAD_REQUEST)
+
+
 class CreateProductView(APIView):
     serializer_class = CreateProductSerializer
 
@@ -27,3 +41,8 @@ class CreateProductView(APIView):
 
         if product is not None:
             return Response(ProductSerializer(product).data, status=status.HTTP_201_CREATED)
+
+
+class ProductDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ProductSerializer
+    queryset = Product.objects.all()
