@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path
 from .views import ProductView, CreateProductView, ProductDetailAPIView, CategoryView, CreateCategoryView, \
     CategoryDetailAPIView, UserView, CreateVariationView, VariationDetailAPIView, CreateOrderAPIView, OrderView, \
-    OrderDetailAPIView
+    OrderDetailAPIView, CreateReviewAPIView, ReviewDetailAPIView
 
 urlpatterns = [
     path('product/', ProductView.as_view(), name='get-all-products'),
@@ -16,5 +16,7 @@ urlpatterns = [
     path('order/', OrderView.as_view(), name='get-all-orders'),
     path('order/create', CreateOrderAPIView.as_view(), name='create-order'),
     path('order/<int:id>', OrderDetailAPIView.as_view(), name='order'),
+    path('review/create', CreateReviewAPIView.as_view(), name='create-review'),
+    path('review/<int:id>', ReviewDetailAPIView.as_view(), name='review'),
     path('user/', UserView.as_view(), name='get-all-users')
 ]

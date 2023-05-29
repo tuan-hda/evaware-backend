@@ -1,20 +1,22 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, status, filters
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveUpdateDestroyAPIView, RetrieveUpdateAPIView, \
+    GenericAPIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 from authentication.models import User
+from helpers.mixins import IncludeDeleteMixin
 from .pagination import CustomPageNumberPagination
 from .serializers import ProductSerializer, CreateProductSerializer, CategorySerializer, UserSerializer, \
-    VariationSerializer, OrderSerializer
-from .models import Product, Category, Variation, Order
+    VariationSerializer, OrderSerializer, ReviewSerializer, ProductDetailSerializer, ViewOrderSerializer, \
+    ViewReviewSerializer
+from .models import Product, Category, Variation, Order, Review
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
 
-class ProductView(ListAPIView):
-    queryset = Product.objects.all().order_by('created_at')
+class ProductView(IncludeDeleteMixin, ListAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = ProductSerializer
     pagination_class = CustomPageNumberPagination
@@ -23,6 +25,7 @@ class ProductView(ListAPIView):
     filterset_fields = ['id', 'name', 'desc', 'price']
     search_fields = ['id', 'name', 'desc', 'price']
     ordering_fields = ['id', 'name', 'desc', 'price']
+
     # class GetProduct(APIView):
 
 
@@ -62,11 +65,13 @@ class CreateProductView(CreateAPIView):
     #         return Response(ProductSerializer(product).data, status=status.HTTP_201_CREATED)
 
 
-class ProductDetailAPIView(RetrieveUpdateDestroyAPIView):
-    serializer_class = ProductSerializer
+class ProductDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView):
+    serializer_class = ProductDetailSerializer
     permission_classes = (IsAuthenticated,)
     lookup_field = "id"
-    queryset = Product.objects.all()
+
+    def perform_destroy(self, instance):
+        instance.soft_delete()
 
 
 class CategoryView(ListAPIView):
@@ -98,6 +103,9 @@ class VariationDetailAPIView(RetrieveUpdateDestroyAPIView):
     lookup_field = "id"
     queryset = Variation.objects.all()
 
+    def perform_destroy(self, instance):
+        instance.soft_delete()
+
 
 class UserView(ListAPIView):
     queryset = User.objects.all()
@@ -115,22 +123,67 @@ class UserView(ListAPIView):
 class OrderView(ListAPIView):
     queryset = Order.objects.all().order_by('created_at')
     permission_classes = (IsAuthenticated, IsAdminUser)
-    serializer_class = OrderSerializer
+    serializer_class = ViewOrderSerializer
 
 
 class CreateOrderAPIView(CreateAPIView):
-    serializer_class = OrderSerializer
     permission_classes = (IsAuthenticated,)
-
-
-class OrderDetailAPIView(RetrieveUpdateDestroyAPIView):
     serializer_class = OrderSerializer
+
+
+class OrderDetailAPIView(RetrieveUpdateAPIView):
     permission_classes = (IsAuthenticated,)
     lookup_field = "id"
     queryset = Order.objects.all()
 
+    def get_serializer_class(self):
+        if self.request.method == 'GET':
+            return ViewOrderSerializer
+        else:
+            return OrderSerializer  # Default serializer class
+
+    def get_object(self):
+        obj = super().get_object()
+        if obj.created_by != self.request.user and not self.request.user.is_staff and not self.request.user.is_superuser:
+            raise PermissionDenied("You do not have permission to access this order.")
+        return obj
+
+
+class CreateReviewAPIView(CreateAPIView):
+    serializer_class = ReviewSerializer
+    permission_classes = (IsAuthenticated,)
+
+
+class ReviewDetailAPIView(RetrieveUpdateDestroyAPIView):
+    permission_classes = (IsAuthenticated,)
+    lookup_field = "id"
+    queryset = Order.objects.all()
+
+    def get_serializer_class(self):
+        if self.request.method == 'GET':
+            return ViewReviewSerializer
+        else:
+            return ReviewSerializer
+
     def get_object(self):
         obj = super().get_object()
         if obj.created_by != self.request.user:
-            raise PermissionDenied("You do not have permission to access this order.")
+            raise PermissionDenied("You do not have permission to access this.")
         return obj
+
+# class UserDetailAPIView(RetrieveUpdateAPIView):
+#     permission_classes = (IsAuthenticated,)
+#     lookup_field = "id"
+#     queryset = User.objects.all()
+#
+#     def get_serializer_class(self):
+#         if self.request.method == 'GET':
+#             return ViewOrderSerializer
+#         else:
+#             return OrderSerializer  # Default serializer class
+#
+#     def get_object(self):
+#         obj = super().get_object()
+#         if obj.created_by != self.request.user:
+#             raise PermissionDenied("You do not have permission to access this.")
+#         return obj

@@ -84,6 +84,11 @@ class User(AbstractBaseUser, PermissionsMixin, TrackingModel):
             "Designates whether this user's email is verified"
         ),
     )
+    dob = models.DateField(blank=True, null=True)
+    full_name = models.TextField(blank=True, null=True)
+    phone = models.CharField(max_length=15, null=True)
+    gender = models.CharField(max_length=15, null=True, default='Male')
+
     objects = MyUserManager()
 
     EMAIL_FIELD = "email"
