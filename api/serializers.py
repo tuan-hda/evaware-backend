@@ -11,4 +11,6 @@ class ProductSerializer(serializers.ModelSerializer):
 class CreateProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
-        fields = ('name', 'desc', 'price')
+        fields = '__all__'
+
+        read_only_fields = ['created_at', 'updated_at']
