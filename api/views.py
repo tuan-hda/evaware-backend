@@ -12,7 +12,7 @@ from .serializers import ProductSerializer, CreateProductSerializer, CategorySer
     VariationSerializer, OrderSerializer, ReviewSerializer, ProductDetailSerializer, ViewOrderSerializer, \
     ViewReviewSerializer, ViewUserSerializer, UpdateProfileSerializer, UpdateUserSerializer, AddressSerializer, \
     PaymentProviderSerializer, PaymentSerializer, ViewPaymentSerializer, ViewCartItemSerializer, CartItemSerializer, \
-    FavoriteItemSerializer, ViewFavoriteItemSerializer, ListProductSerializer, VoucherSerializer
+    FavoriteItemSerializer, ViewFavoriteItemSerializer, ListProductSerializer, VoucherSerializer, FileUploadSerializer
 from .models import Product, Category, Variation, Order, Review, Address, PaymentProvider, Payment, CartItem, \
     FavoriteItem, Voucher
 from rest_framework.views import APIView
@@ -508,3 +508,13 @@ class GetVoucherFromCodeView(RetrieveAPIView):
         if instance is None:
             raise serializers.ValidationError(f'No voucher {code} found')
         return instance
+
+
+class FileUploadView(GenericAPIView):
+    def post(self, request, format=None):
+        serializer = FileUploadSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            response_data = serializer.data
+            return Response(response_data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

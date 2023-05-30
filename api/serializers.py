@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.utils import timezone
 from authentication.models import User
+from evaware_backend.settings import AWS_STORAGE_BUCKET_NAME, AWS_DISTRIBUTION_DOMAIN
+from .config import s3_client
 from .models import Product, Category, Variation, Order, OrderDetail, Review, Address, Payment, PaymentProvider, \
     CartItem, FavoriteItem, Voucher
 
@@ -268,3 +270,18 @@ class ViewFavoriteItemSerializer(serializers.ModelSerializer):
         model = FavoriteItem
         exclude = ('created_by',)
         depth = 1
+
+
+class FileUploadSerializer(serializers.Serializer):
+    url = serializers.CharField(read_only=True)
+    file = serializers.FileField(write_only=True)
+
+    def create(self, validated_data):
+        file = validated_data['file']
+        time_str = str(timezone.now()).replace("-", "").replace(" ", "").replace(":", "").replace(".", "").replace("+",
+                                                                                                                   "")
+        file_path = f"uploads/{time_str}{file.name}"
+        s3_client.put_object(Key=file_path, Body=file, Bucket=AWS_STORAGE_BUCKET_NAME)
+        url = 'https://' + AWS_DISTRIBUTION_DOMAIN + '/' + file_path
+
+        return {'url': url}

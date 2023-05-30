@@ -6,7 +6,7 @@ from .views import ProductView, CreateProductView, ProductDetailAPIView, Categor
     AdminUpdateUserAPIView, AddressListView, CreateAddressView, AddressDetailAPIView, PaymentProviderListView, \
     PaymentListView, CreatePaymentView, PaymentDetailAPIView, CartItemListView, AddToCartView, CartItemDetailAPIView, \
     ChangeQtyCartItemAPIView, FavoriteItemListView, AddItemToFavoriteView, DeleteFavoriteItemView, \
-    MakeOrderFromCartView, CreateVoucherView, VoucherView, VoucherDetailAPIView, GetVoucherFromCodeView
+    MakeOrderFromCartView, CreateVoucherView, VoucherView, VoucherDetailAPIView, GetVoucherFromCodeView, FileUploadView
 
 urlpatterns = [
     path('product/', ProductView.as_view(), name='get-all-products'),
@@ -45,4 +45,5 @@ urlpatterns = [
     path('voucher/create', CreateVoucherView.as_view(), name='create-voucher'),
     path('voucher/<int:id>', VoucherDetailAPIView.as_view(), name='voucher'),
     path('voucher/get-from-code', GetVoucherFromCodeView.as_view(), name='get-voucher-from-code'),
+    path('upload/', FileUploadView.as_view(), name='file-upload'),
 ]
