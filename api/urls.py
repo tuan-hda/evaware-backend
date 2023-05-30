@@ -2,7 +2,9 @@ from django.contrib import admin
 from django.urls import path
 from .views import ProductView, CreateProductView, ProductDetailAPIView, CategoryView, CreateCategoryView, \
     CategoryDetailAPIView, UserView, CreateVariationView, VariationDetailAPIView, CreateOrderAPIView, OrderView, \
-    OrderDetailAPIView, CreateReviewAPIView, ReviewDetailAPIView
+    OrderDetailAPIView, CreateReviewAPIView, ReviewDetailAPIView, UserUpdateProfileAPIView, CurrentUserAPIView, \
+    AdminUpdateUserAPIView, AddressListView, CreateAddressView, AddressDetailAPIView, PaymentProviderListView, \
+    PaymentListView, CreatePaymentView, PaymentDetailAPIView
 
 urlpatterns = [
     path('product/', ProductView.as_view(), name='get-all-products'),
@@ -18,5 +20,15 @@ urlpatterns = [
     path('order/<int:id>', OrderDetailAPIView.as_view(), name='order'),
     path('review/create', CreateReviewAPIView.as_view(), name='create-review'),
     path('review/<int:id>', ReviewDetailAPIView.as_view(), name='review'),
-    path('user/', UserView.as_view(), name='get-all-users')
+    path('user/', UserView.as_view(), name='get-all-users'),
+    path('user/current', CurrentUserAPIView.as_view(), name='user'),
+    path('user/<int:id>', UserUpdateProfileAPIView.as_view(), name='update-profile'),
+    path('user/<int:id>/admin', AdminUpdateUserAPIView.as_view(), name='update-user-admin'),
+    path('address/', AddressListView.as_view(), name='get-user-address'),
+    path('address/create', CreateAddressView.as_view(), name='create-address'),
+    path('address/<int:id>', AddressDetailAPIView.as_view(), name='address'),
+    path('payment-providers/', PaymentProviderListView.as_view(), name='get-all-payment-providers'),
+    path('payment/', PaymentListView.as_view(), name='get-all-user-payments'),
+    path('payment/create', CreatePaymentView.as_view(), name='create-payment'),
+    path('payment/<int:id>', PaymentDetailAPIView.as_view(), name='payment'),
 ]

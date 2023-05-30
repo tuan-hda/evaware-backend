@@ -33,6 +33,7 @@ class Variation(TrackingModel, SoftDeleteModel):
 
 
 class Order(TrackingModel):
+    email = models.EmailField(default='', blank=False)
     phone = models.CharField(max_length=15, default='')
     full_name = models.CharField(max_length=300, default="")
     province = models.CharField(max_length=100, default='')
@@ -62,3 +63,33 @@ class Review(TrackingModel):
     variation = models.ForeignKey(Variation, on_delete=models.CASCADE, related_name='reviews')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews', related_query_name='review')
+
+
+class Address(TrackingModel):
+    email = models.EmailField(default='', blank=False)
+    phone = models.CharField(max_length=15, default='')
+    full_name = models.CharField(max_length=300, default="")
+    province = models.CharField(max_length=100, default='')
+    province_code = models.IntegerField(default=0)
+    district = models.CharField(max_length=100, default='')
+    district_code = models.IntegerField(default=0)
+    ward = models.CharField(max_length=100, default='')
+    ward_code = models.IntegerField(default=0)
+    street = models.CharField(max_length=300, default="")
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='addresses',
+                                   related_query_name='address')
+
+
+class PaymentProvider(SoftDeleteModel, TrackingModel):
+    img_url = models.TextField(default='')
+    name = models.TextField(default='')
+    method = models.CharField(max_length=50, default='')
+
+
+class Payment(TrackingModel):
+    provider = models.ForeignKey(PaymentProvider, on_delete=models.CASCADE, related_name='payments',
+                                 related_query_name='payment')
+    name = models.CharField(max_length=300, default='')
+    exp = models.CharField(max_length=50, default='', blank=True, null=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payments',
+                                   related_query_name='payments')

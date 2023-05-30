@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from authentication.models import User
-from .models import Product, Category, Variation, Order, OrderDetail, Review
+from .models import Product, Category, Variation, Order, OrderDetail, Review, Address, Payment, PaymentProvider
 
 
 def custom_to_representation(representation, field_name):
@@ -17,6 +17,21 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         exclude = ('password',)
+
+
+class UpdateProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        exclude = ('password',)
+        read_only_fields = ['last_login', 'is_superuser', 'email', 'is_staff', 'is_active', 'date_joined',
+                            'email_verified', 'groups', 'user_permissions', 'created_at', 'updated_at']
+
+
+class UpdateUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        exclude = ('password',)
+        read_only_fields = ['phone', 'email', 'dob', 'full_name', 'gender']
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -82,10 +97,12 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
 
 class ViewOrderDetailSerializer(serializers.ModelSerializer):
+    variation = VariationSerializer()
+    product = CreateProductSerializer()
+
     class Meta:
         model = OrderDetail
-        depth = 1
-        exclude = ('order',)
+        fields = '__all__'
 
 
 class ViewOrderSerializer(serializers.ModelSerializer):
@@ -95,6 +112,14 @@ class ViewOrderSerializer(serializers.ModelSerializer):
         model = Order
         fields = '__all__'
         depth = 1
+
+
+class ViewOrderSerializerWithoutCreatedBy(serializers.ModelSerializer):
+    order_details = ViewOrderDetailSerializer(many=True)
+
+    class Meta:
+        model = Order
+        fields = '__all__'
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -118,10 +143,54 @@ class OrderSerializer(serializers.ModelSerializer):
         return custom_to_representation(representation, 'order_details')
 
 
+class ViewReviewSerializerWithoutCreatedBy(serializers.ModelSerializer):
+    variation = VariationSerializer()
+    product = CreateProductSerializer()
+
+    class Meta:
+        model = Review
+        fields = '__all__'
+
+
 class ViewUserSerializer(serializers.ModelSerializer):
-    reviews = ViewReviewSerializer(many=True)
-    orders = ViewOrderSerializer(many=True)
+    reviews = ViewReviewSerializerWithoutCreatedBy(many=True)
+    orders = ViewOrderSerializerWithoutCreatedBy(many=True)
 
     class Meta:
         model = User
         exclude = ('password',)
+
+
+class AddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Address
+        fields = '__all__'
+        read_only_fields = ('created_by',)
+
+    def create(self, validated_data):
+        validated_data['created_by'] = self.context['request'].user
+        return super().create(validated_data)
+
+
+class PaymentProviderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentProvider
+        fields = '__all__'
+
+
+class ViewPaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        exclude = ('created_by',)
+        depth = 1
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = '__all__'
+        read_only_fields = ('created_by',)
+
+    def create(self, validated_data):
+        validated_data['created_by'] = self.context['request'].user
+        return super().create(validated_data)

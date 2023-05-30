@@ -1,8 +1,8 @@
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import generics, status, filters
+from rest_framework import generics, status, filters, response
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveUpdateDestroyAPIView, RetrieveUpdateAPIView, \
-    GenericAPIView
+    GenericAPIView, UpdateAPIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 from authentication.models import User
@@ -10,8 +10,9 @@ from helpers.mixins import IncludeDeleteMixin
 from .pagination import CustomPageNumberPagination
 from .serializers import ProductSerializer, CreateProductSerializer, CategorySerializer, UserSerializer, \
     VariationSerializer, OrderSerializer, ReviewSerializer, ProductDetailSerializer, ViewOrderSerializer, \
-    ViewReviewSerializer
-from .models import Product, Category, Variation, Order, Review
+    ViewReviewSerializer, ViewUserSerializer, UpdateProfileSerializer, UpdateUserSerializer, AddressSerializer, \
+    PaymentProviderSerializer, PaymentSerializer, ViewPaymentSerializer
+from .models import Product, Category, Variation, Order, Review, Address, PaymentProvider, Payment
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
@@ -108,16 +109,14 @@ class VariationDetailAPIView(RetrieveUpdateDestroyAPIView):
 
 
 class UserView(ListAPIView):
-    queryset = User.objects.all()
     permission_classes = (IsAuthenticated, IsAdminUser)
     serializer_class = UserSerializer
 
-    def get_object(self):
-        obj = super().get_object()
+    def get_queryset(self):
         # Check if the request user is the owner of the product
-        if not self.request.user.is_admin:
+        if not self.request.user.is_superuser:
             raise PermissionDenied("You do not have permission to access user information.")
-        return obj
+        return User.objects.all()
 
 
 class OrderView(ListAPIView):
@@ -171,19 +170,95 @@ class ReviewDetailAPIView(RetrieveUpdateDestroyAPIView):
             raise PermissionDenied("You do not have permission to access this.")
         return obj
 
-# class UserDetailAPIView(RetrieveUpdateAPIView):
-#     permission_classes = (IsAuthenticated,)
-#     lookup_field = "id"
-#     queryset = User.objects.all()
-#
-#     def get_serializer_class(self):
-#         if self.request.method == 'GET':
-#             return ViewOrderSerializer
-#         else:
-#             return OrderSerializer  # Default serializer class
-#
-#     def get_object(self):
-#         obj = super().get_object()
-#         if obj.created_by != self.request.user:
-#             raise PermissionDenied("You do not have permission to access this.")
-#         return obj
+
+class UserUpdateProfileAPIView(UpdateAPIView):
+    permission_classes = (IsAuthenticated,)
+    lookup_field = "id"
+    queryset = User.objects.all()
+    serializer_class = UpdateProfileSerializer
+
+    def get_object(self):
+        obj = super().get_object()
+        if obj != self.request.user:
+            raise PermissionDenied("You do not have permission to access this.")
+        return obj
+
+
+class CurrentUserAPIView(GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        user = request.user
+        serializer = ViewUserSerializer(user)
+        return response.Response({'user': serializer.data})
+
+
+class AdminUpdateUserAPIView(UpdateAPIView):
+    permission_classes = (IsAuthenticated,)
+    lookup_field = "id"
+    queryset = User.objects.all()
+    serializer_class = UpdateUserSerializer
+
+    def get_object(self):
+        obj = super().get_object()
+        if not self.request.user.is_superuser:
+            raise PermissionDenied("You do not have permission to access this.")
+        return obj
+
+
+class AddressListView(ListAPIView):
+    permission_classes = (IsAuthenticated,)
+    serializer_class = AddressSerializer
+
+    def get_queryset(self):
+        return Address.objects.filter(created_by=self.request.user)
+
+
+class CreateAddressView(CreateAPIView):
+    serializer_class = AddressSerializer
+    permission_classes = (IsAuthenticated,)
+
+
+class AddressDetailAPIView(RetrieveUpdateDestroyAPIView):
+    serializer_class = AddressSerializer
+    permission_classes = (IsAuthenticated,)
+    lookup_field = "id"
+    queryset = Address.objects.all()
+
+    def get_object(self):
+        obj = super().get_object()
+        if obj.created_by != self.request.user:
+            raise PermissionDenied("You do not have permission to access this.")
+        return obj
+
+
+class PaymentProviderListView(ListAPIView):
+    permission_classes = (IsAuthenticated,)
+    serializer_class = PaymentProviderSerializer
+    queryset = PaymentProvider.objects.all()
+
+
+class PaymentListView(ListAPIView):
+    permission_classes = (IsAuthenticated,)
+    serializer_class = ViewPaymentSerializer
+
+    def get_queryset(self):
+        return Payment.objects.filter(created_by=self.request.user)
+
+
+class CreatePaymentView(CreateAPIView):
+    serializer_class = PaymentSerializer
+    permission_classes = (IsAuthenticated,)
+
+
+class PaymentDetailAPIView(RetrieveUpdateDestroyAPIView):
+    serializer_class = PaymentSerializer
+    permission_classes = (IsAuthenticated,)
+    lookup_field = "id"
+    queryset = Payment.objects.all()
+
+    def get_object(self):
+        obj = super().get_object()
+        if obj.created_by != self.request.user:
+            raise PermissionDenied("You do not have permission to access this.")
+        return obj
