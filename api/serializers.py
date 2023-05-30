@@ -1,8 +1,8 @@
 from rest_framework import serializers
-
+from django.utils import timezone
 from authentication.models import User
 from .models import Product, Category, Variation, Order, OrderDetail, Review, Address, Payment, PaymentProvider, \
-    CartItem, FavoriteItem
+    CartItem, FavoriteItem, Voucher
 
 
 def custom_to_representation(representation, field_name):
@@ -130,18 +130,48 @@ class ViewOrderSerializerWithoutCreatedBy(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class VoucherSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Voucher
+        fields = '__all__'
+
+
 class OrderSerializer(serializers.ModelSerializer):
     order_details = OrderDetailSerializer(many=True)
+    voucher = serializers.PrimaryKeyRelatedField(queryset=Voucher.objects.all(), allow_null=True, required=False)
+    voucher_code = serializers.CharField(max_length=30, required=False)
 
     class Meta:
         model = Order
         fields = '__all__'
         depth = 1
 
+    def check_voucher(self, validated_data):
+        voucher = validated_data.get('voucher')
+        voucher_code = validated_data.get('voucher_code')
+        if voucher is not None:
+            if voucher.code != voucher_code:
+                print(voucher.code, voucher_code)
+                raise serializers.ValidationError('Voucher is invalid')
+
+            current_time = timezone.now().date()
+            if voucher.from_date > current_time or voucher.to_date < current_time:
+                raise serializers.ValidationError('Voucher is expired')
+
+            return voucher
+        return None
+
     def create(self, validated_data):
         validated_data['created_by'] = self.context['request'].user
+        voucher = self.check_voucher(validated_data)
+        if voucher is not None:
+            total = validated_data['total']
+            total = int(total * (1 - voucher.discount / 100.0))
+            validated_data['total'] = total
+            validated_data.pop('voucher_code')
+            validated_data.pop('voucher')
         sub_data = validated_data.pop('order_details', [])
-        order = Order.objects.create(**validated_data)
+        order = Order.objects.create(voucher=voucher, **validated_data)
         for data in sub_data:
             OrderDetail.objects.create(order=order, **data)
         return order
@@ -235,6 +265,6 @@ class FavoriteItemSerializer(serializers.ModelSerializer):
 
 class ViewFavoriteItemSerializer(serializers.ModelSerializer):
     class Meta:
-        model = CartItem
+        model = FavoriteItem
         exclude = ('created_by',)
         depth = 1

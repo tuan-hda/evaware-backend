@@ -1,8 +1,9 @@
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
-
+from django.core.validators import MinValueValidator, MaxValueValidator
 from authentication.models import User
 from helpers.models import TrackingModel, SoftDeleteModel
+from django.utils.translation import gettext_lazy as _
 
 
 # Create your models here.
@@ -16,6 +17,7 @@ class Category(TrackingModel, SoftDeleteModel):
 class Product(TrackingModel, SoftDeleteModel):
     name = models.CharField(max_length=300, default="")
     desc = models.TextField(default="", null=True, blank=True)
+    discount = models.IntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
     price = models.IntegerField(default=0)
     thumbnail = models.TextField(
         default='https://img.freepik.com/free-photo/mid-century-modern-living-room-interior-design-with-monstera-tree_53876-129804.jpg')
@@ -33,6 +35,15 @@ class Variation(TrackingModel, SoftDeleteModel):
     img_urls = ArrayField(models.TextField(default=''))
 
 
+class Voucher(TrackingModel, SoftDeleteModel):
+    code = models.CharField(max_length=30, unique=True, error_messages={
+        'unique': _("A voucher with that code already exists."),
+    })
+    discount = models.IntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    from_date = models.DateField()
+    to_date = models.DateField()
+
+
 class Order(TrackingModel):
     email = models.EmailField(blank=False)
     phone = models.CharField(max_length=15)
@@ -47,7 +58,10 @@ class Order(TrackingModel):
     status = models.CharField(max_length=20, default='In progress')
     total = models.IntegerField()
     payment = models.TextField(default='COD')
+    shipping_date = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders', related_query_name='order')
+    voucher = models.ForeignKey(Voucher, null=True, on_delete=models.CASCADE, related_name='orders',
+                                related_query_name='order')
 
 
 class OrderDetail(TrackingModel):

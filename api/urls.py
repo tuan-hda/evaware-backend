@@ -5,7 +5,8 @@ from .views import ProductView, CreateProductView, ProductDetailAPIView, Categor
     OrderDetailAPIView, CreateReviewAPIView, ReviewDetailAPIView, UserUpdateProfileAPIView, CurrentUserAPIView, \
     AdminUpdateUserAPIView, AddressListView, CreateAddressView, AddressDetailAPIView, PaymentProviderListView, \
     PaymentListView, CreatePaymentView, PaymentDetailAPIView, CartItemListView, AddToCartView, CartItemDetailAPIView, \
-    ChangeQtyCartItemAPIView, FavoriteItemListView, AddItemToFavoriteView, DeleteFavoriteItemView, MakeOrderFromCartView
+    ChangeQtyCartItemAPIView, FavoriteItemListView, AddItemToFavoriteView, DeleteFavoriteItemView, \
+    MakeOrderFromCartView, CreateVoucherView, VoucherView, VoucherDetailAPIView, GetVoucherFromCodeView
 
 urlpatterns = [
     path('product/', ProductView.as_view(), name='get-all-products'),
@@ -40,4 +41,8 @@ urlpatterns = [
     path('favorite/', FavoriteItemListView.as_view(), name='get-all-user-favorite-items'),
     path('favorite/add-to-favorite', AddItemToFavoriteView.as_view(), name='add-to-favorite'),
     path('favorite/<int:id>', DeleteFavoriteItemView.as_view(), name='delete-favorite'),
+    path('voucher/', VoucherView.as_view(), name='get-all-vouchers'),
+    path('voucher/create', CreateVoucherView.as_view(), name='create-voucher'),
+    path('voucher/<int:id>', VoucherDetailAPIView.as_view(), name='voucher'),
+    path('voucher/get-from-code', GetVoucherFromCodeView.as_view(), name='get-voucher-from-code'),
 ]

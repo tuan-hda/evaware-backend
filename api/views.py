@@ -2,7 +2,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, status, filters, response, serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveUpdateDestroyAPIView, RetrieveUpdateAPIView, \
-    GenericAPIView, UpdateAPIView, RetrieveDestroyAPIView, DestroyAPIView
+    GenericAPIView, UpdateAPIView, RetrieveDestroyAPIView, DestroyAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 from authentication.models import User
@@ -12,9 +12,9 @@ from .serializers import ProductSerializer, CreateProductSerializer, CategorySer
     VariationSerializer, OrderSerializer, ReviewSerializer, ProductDetailSerializer, ViewOrderSerializer, \
     ViewReviewSerializer, ViewUserSerializer, UpdateProfileSerializer, UpdateUserSerializer, AddressSerializer, \
     PaymentProviderSerializer, PaymentSerializer, ViewPaymentSerializer, ViewCartItemSerializer, CartItemSerializer, \
-    FavoriteItemSerializer, ViewFavoriteItemSerializer, ListProductSerializer
+    FavoriteItemSerializer, ViewFavoriteItemSerializer, ListProductSerializer, VoucherSerializer
 from .models import Product, Category, Variation, Order, Review, Address, PaymentProvider, Payment, CartItem, \
-    FavoriteItem
+    FavoriteItem, Voucher
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
@@ -97,14 +97,19 @@ class CategoryView(ListAPIView):
 
 class CreateCategoryView(CreateAPIView):
     serializer_class = CategorySerializer
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, IsAdminUser)
 
 
 class CategoryDetailAPIView(RetrieveUpdateDestroyAPIView):
     serializer_class = CategorySerializer
-    permission_classes = (IsAuthenticated,)
     lookup_field = "id"
     queryset = Category.objects.all()
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated()]
+        else:
+            return [IsAuthenticated(), IsAdminUser()]
 
     def perform_destroy(self, instance):
         instance.soft_delete()
@@ -112,14 +117,19 @@ class CategoryDetailAPIView(RetrieveUpdateDestroyAPIView):
 
 class CreateVariationView(CreateAPIView):
     serializer_class = VariationSerializer
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, IsAdminUser)
 
 
 class VariationDetailAPIView(RetrieveUpdateDestroyAPIView):
     serializer_class = VariationSerializer
-    permission_classes = (IsAuthenticated,)
     lookup_field = "id"
     queryset = Variation.objects.all()
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated()]
+        else:
+            return [IsAuthenticated(), IsAdminUser()]
 
     def perform_destroy(self, instance):
         instance.soft_delete()
@@ -295,16 +305,25 @@ class AddToCartView(GenericAPIView):
 
     def post(self, request):
         user = request.user
+        request.data['qty'] = 1
         product = Product.objects.get(id=request.data['product'])
         variation = Variation.objects.get(id=request.data['variation'])
         instance = CartItem.objects.filter(created_by=user, variation=variation, product=product).first()
         # Check if cart item already exists in user's cart
         if instance is not None:
             # If true then update qty
+            if variation.inventory <= instance.qty:
+                instance.qty = variation.inventory
+                instance.save()
+                if instance.qty == 0:
+                    instance.delete()
+                raise serializers.ValidationError('Insufficient inventory. Update item qty')
             request.data['qty'] = instance.qty + 1
             serializer = self.serializer_class(instance, data=request.data, context={'request': request})
         else:
             # Else create new cart item
+            if variation.inventory == 0:
+                raise serializers.ValidationError('Insufficient inventory. Update item qty')
             serializer = self.serializer_class(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
@@ -339,8 +358,10 @@ class MakeOrderFromCartView(GenericAPIView):
             if cart_item.variation.inventory < cart_item.qty:
                 cart_item.qty = cart_item.variation.inventory
                 cart_item.save()
+                if cart_item.qty == 0:
+                    cart_item.delete()
                 raise serializers.ValidationError(
-                    f'Insufficient inventory (stock) for variation {cart_item.variation.name}')
+                    f'Insufficient inventory (stock) for variation')
 
             request.data['order_details'].append(
                 {
@@ -404,8 +425,10 @@ class ChangeQtyCartItemAPIView(UpdateAPIView):
         if instance.variation.inventory < instance.qty:
             instance.qty = instance.variation.inventory
             instance.save()
+            if instance.qty == 0:
+                instance.delete()
             raise serializers.ValidationError(
-                f"Insufficient inventory (stock) for variation {instance.variation.name}. Auto reset qty item")
+                f"Insufficient inventory (stock) for variation. Auto reset qty item")
 
         instance.save()
 
@@ -452,3 +475,36 @@ class DeleteFavoriteItemView(DestroyAPIView):
         if obj.created_by != self.request.user:
             raise PermissionDenied("You do not have permission to access this.")
         return obj
+
+
+class VoucherView(ListAPIView):
+    queryset = Voucher.objects.all()
+    permission_classes = (IsAuthenticated, IsAdminUser)
+    serializer_class = VoucherSerializer
+
+
+class CreateVoucherView(CreateAPIView):
+    serializer_class = VoucherSerializer
+    permission_classes = (IsAuthenticated, IsAdminUser)
+
+
+class VoucherDetailAPIView(RetrieveUpdateDestroyAPIView):
+    serializer_class = VoucherSerializer
+    permission_classes = (IsAuthenticated, IsAdminUser)
+    lookup_field = "id"
+    queryset = Voucher.objects.all()
+
+    def perform_destroy(self, instance):
+        instance.soft_delete()
+
+
+class GetVoucherFromCodeView(RetrieveAPIView):
+    serializer_class = VoucherSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_object(self):
+        code = self.request.query_params.get('code')
+        instance = Voucher.objects.filter(code=code).first()
+        if instance is None:
+            raise serializers.ValidationError(f'No voucher {code} found')
+        return instance
