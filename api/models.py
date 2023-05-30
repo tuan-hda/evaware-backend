@@ -22,6 +22,7 @@ class Product(TrackingModel, SoftDeleteModel):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, )
     reviews_count = models.IntegerField(default=0, blank=True, null=True)
     avg_rating = models.FloatField(default=0)
+    variations_count = models.IntegerField(default=0, blank=True, null=True)
 
 
 class Variation(TrackingModel, SoftDeleteModel):
@@ -33,18 +34,18 @@ class Variation(TrackingModel, SoftDeleteModel):
 
 
 class Order(TrackingModel):
-    email = models.EmailField(default='', blank=False)
-    phone = models.CharField(max_length=15, default='')
-    full_name = models.CharField(max_length=300, default="")
-    province = models.CharField(max_length=100, default='')
-    province_code = models.IntegerField(default=0)
-    district = models.CharField(max_length=100, default='')
-    district_code = models.IntegerField(default=0)
-    ward = models.CharField(max_length=100, default='')
-    ward_code = models.IntegerField(default=0)
-    street = models.CharField(max_length=300, default="")
+    email = models.EmailField(blank=False)
+    phone = models.CharField(max_length=15)
+    full_name = models.CharField(max_length=300)
+    province = models.CharField(max_length=100)
+    province_code = models.IntegerField()
+    district = models.CharField(max_length=100)
+    district_code = models.IntegerField()
+    ward = models.CharField(max_length=100)
+    ward_code = models.IntegerField()
+    street = models.CharField(max_length=300)
     status = models.CharField(max_length=20, default='In progress')
-    total = models.IntegerField(default=0)
+    total = models.IntegerField()
     payment = models.TextField(default='COD')
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders', related_query_name='order')
 

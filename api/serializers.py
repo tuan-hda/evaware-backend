@@ -65,6 +65,13 @@ class VariationSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class ListProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = '__all__'
+        depth = 1
+
+
 class ProductSerializer(serializers.ModelSerializer):
     variations = VariationSerializer(many=True, read_only=True)
     reviews = ReviewSerializer(many=True, read_only=True)

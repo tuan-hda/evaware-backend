@@ -12,7 +12,7 @@ from .serializers import ProductSerializer, CreateProductSerializer, CategorySer
     VariationSerializer, OrderSerializer, ReviewSerializer, ProductDetailSerializer, ViewOrderSerializer, \
     ViewReviewSerializer, ViewUserSerializer, UpdateProfileSerializer, UpdateUserSerializer, AddressSerializer, \
     PaymentProviderSerializer, PaymentSerializer, ViewPaymentSerializer, ViewCartItemSerializer, CartItemSerializer, \
-    FavoriteItemSerializer, ViewFavoriteItemSerializer
+    FavoriteItemSerializer, ViewFavoriteItemSerializer, ListProductSerializer
 from .models import Product, Category, Variation, Order, Review, Address, PaymentProvider, Payment, CartItem, \
     FavoriteItem
 from rest_framework.views import APIView
@@ -21,13 +21,15 @@ from rest_framework.response import Response
 
 class ProductView(IncludeDeleteMixin, ListAPIView):
     permission_classes = (IsAuthenticated,)
-    serializer_class = ProductSerializer
+    serializer_class = ListProductSerializer
     pagination_class = CustomPageNumberPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
 
-    filterset_fields = ['id', 'name', 'desc', 'price']
-    search_fields = ['id', 'name', 'desc', 'price']
-    ordering_fields = ['id', 'name', 'desc', 'price']
+    filterset_fields = ['id', 'name', 'desc', 'price', 'avg_rating', 'variation__name', 'reviews_count',
+                        'category__name', 'category__id']
+    search_fields = ['id', 'name', 'desc', 'price', 'avg_rating', 'variation__name', 'reviews_count', 'category__name']
+    ordering_fields = ['id', 'name', 'desc', 'price', 'avg_rating', 'variation__name', 'reviews_count',
+                       'category__name', 'category__id']
 
     # class GetProduct(APIView):
 
@@ -47,7 +49,7 @@ class ProductView(IncludeDeleteMixin, ListAPIView):
 
 class CreateProductView(CreateAPIView):
     serializer_class = CreateProductSerializer
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, IsAdminUser)
 
     def perform_create(self, serializer):
         return serializer.save()
@@ -69,9 +71,19 @@ class CreateProductView(CreateAPIView):
 
 
 class ProductDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView):
-    serializer_class = ProductDetailSerializer
-    permission_classes = (IsAuthenticated,)
     lookup_field = "id"
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated()]
+        else:
+            return [IsAuthenticated(), IsAdminUser()]
+
+    def get_serializer_class(self):
+        if self.request.method == 'GET':
+            return ProductDetailSerializer
+        else:
+            return CreateProductSerializer
 
     def perform_destroy(self, instance):
         instance.soft_delete()
@@ -301,6 +313,54 @@ class AddToCartView(GenericAPIView):
         return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class MakeOrderFromCartView(GenericAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def update_variation_qty(self, cart_items):
+        for cart_item in cart_items:
+            variation = cart_item.variation
+            variation.inventory -= cart_item.qty
+            variation.save()
+
+    def remove_all_cart_items(self, cart_items):
+        for cart_item in cart_items:
+            cart_item.delete()
+
+    def post(self, request):
+        cart_items = CartItem.objects.filter(created_by=request.user)
+        if len(cart_items) == 0:
+            raise serializers.ValidationError('User has no items in cart!')
+
+        request.data['order_details'] = []
+        total = 0
+        for cart_item in cart_items:
+            total += cart_item.qty * cart_item.product.price
+            if cart_item.variation.inventory < cart_item.qty:
+                cart_item.qty = cart_item.variation.inventory
+                cart_item.save()
+                raise serializers.ValidationError(
+                    f'Insufficient inventory (stock) for variation {cart_item.variation.name}')
+
+            request.data['order_details'].append(
+                {
+                    'product': cart_item.product.id,
+                    'variation': cart_item.variation.id,
+                    'price': cart_item.product.price,
+                    'qty': cart_item.qty
+                }
+            )
+        request.data['total'] = total
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            self.update_variation_qty(cart_items)
+            self.remove_all_cart_items(cart_items)
+            return response.Response(serializer.data, status=status.HTTP_200_OK)
+
+        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 class CartItemDetailAPIView(RetrieveDestroyAPIView):
     serializer_class = ViewCartItemSerializer
     permission_classes = (IsAuthenticated,)
@@ -340,6 +400,12 @@ class ChangeQtyCartItemAPIView(UpdateAPIView):
             instance.qty -= 1
         else:
             raise serializers.ValidationError("Invalid action type.")
+
+        if instance.variation.inventory < instance.qty:
+            instance.qty = instance.variation.inventory
+            instance.save()
+            raise serializers.ValidationError(
+                f"Insufficient inventory (stock) for variation {instance.variation.name}. Auto reset qty item")
 
         instance.save()
 

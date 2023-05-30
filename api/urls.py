@@ -5,7 +5,7 @@ from .views import ProductView, CreateProductView, ProductDetailAPIView, Categor
     OrderDetailAPIView, CreateReviewAPIView, ReviewDetailAPIView, UserUpdateProfileAPIView, CurrentUserAPIView, \
     AdminUpdateUserAPIView, AddressListView, CreateAddressView, AddressDetailAPIView, PaymentProviderListView, \
     PaymentListView, CreatePaymentView, PaymentDetailAPIView, CartItemListView, AddToCartView, CartItemDetailAPIView, \
-    ChangeQtyCartItemAPIView, FavoriteItemListView, AddItemToFavoriteView, DeleteFavoriteItemView
+    ChangeQtyCartItemAPIView, FavoriteItemListView, AddItemToFavoriteView, DeleteFavoriteItemView, MakeOrderFromCartView
 
 urlpatterns = [
     path('product/', ProductView.as_view(), name='get-all-products'),
@@ -19,6 +19,7 @@ urlpatterns = [
     path('order/', OrderView.as_view(), name='get-all-orders'),
     path('order/create', CreateOrderAPIView.as_view(), name='create-order'),
     path('order/<int:id>', OrderDetailAPIView.as_view(), name='order'),
+    path('order/make-order-from-cart', MakeOrderFromCartView.as_view(), name='make-order-from-cart'),
     path('review/create', CreateReviewAPIView.as_view(), name='create-review'),
     path('review/<int:id>', ReviewDetailAPIView.as_view(), name='review'),
     path('user/', UserView.as_view(), name='get-all-users'),
