@@ -6,7 +6,7 @@ from helpers.models import TrackingModel, SoftDeleteModel
 
 
 # Create your models here.
-class Category(TrackingModel):
+class Category(TrackingModel, SoftDeleteModel):
     name = models.CharField(max_length=300, default="")
     desc = models.TextField(default="", null=True, blank=True)
     img_url = models.TextField(
@@ -92,4 +92,21 @@ class Payment(TrackingModel):
     name = models.CharField(max_length=300, default='')
     exp = models.CharField(max_length=50, default='', blank=True, null=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payments',
-                                   related_query_name='payments')
+                                   related_query_name='payment')
+
+
+class CartItem(TrackingModel):
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cart_items',
+                                   related_query_name='cart_item')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='cart_items',
+                                related_query_name='cart_item')
+    variation = models.ForeignKey(Variation, on_delete=models.CASCADE, related_name='cart_items',
+                                  related_query_name='cart_item')
+    qty = models.IntegerField(default=1)
+
+
+class FavoriteItem(TrackingModel):
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='favorites',
+                                   related_query_name='favorites')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='favorites')
+    variation = models.ForeignKey(Variation, on_delete=models.CASCADE, related_name='favorites')

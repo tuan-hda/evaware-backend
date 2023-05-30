@@ -1,7 +1,8 @@
 from rest_framework import serializers
 
 from authentication.models import User
-from .models import Product, Category, Variation, Order, OrderDetail, Review, Address, Payment, PaymentProvider
+from .models import Product, Category, Variation, Order, OrderDetail, Review, Address, Payment, PaymentProvider, \
+    CartItem, FavoriteItem
 
 
 def custom_to_representation(representation, field_name):
@@ -194,3 +195,39 @@ class PaymentSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data['created_by'] = self.context['request'].user
         return super().create(validated_data)
+
+
+class CartItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CartItem
+        fields = '__all__'
+        read_only_fields = ['created_by', ]
+
+    def create(self, validated_data):
+        validated_data['created_by'] = self.context['request'].user
+        return super().create(validated_data)
+
+
+class ViewCartItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CartItem
+        exclude = ('created_by',)
+        depth = 1
+
+
+class FavoriteItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FavoriteItem
+        fields = '__all__'
+        read_only_fields = ['created_by', ]
+
+    def create(self, validated_data):
+        validated_data['created_by'] = self.context['request'].user
+        return super().create(validated_data)
+
+
+class ViewFavoriteItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CartItem
+        exclude = ('created_by',)
+        depth = 1

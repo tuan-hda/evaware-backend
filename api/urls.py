@@ -4,7 +4,8 @@ from .views import ProductView, CreateProductView, ProductDetailAPIView, Categor
     CategoryDetailAPIView, UserView, CreateVariationView, VariationDetailAPIView, CreateOrderAPIView, OrderView, \
     OrderDetailAPIView, CreateReviewAPIView, ReviewDetailAPIView, UserUpdateProfileAPIView, CurrentUserAPIView, \
     AdminUpdateUserAPIView, AddressListView, CreateAddressView, AddressDetailAPIView, PaymentProviderListView, \
-    PaymentListView, CreatePaymentView, PaymentDetailAPIView
+    PaymentListView, CreatePaymentView, PaymentDetailAPIView, CartItemListView, AddToCartView, CartItemDetailAPIView, \
+    ChangeQtyCartItemAPIView, FavoriteItemListView, AddItemToFavoriteView, DeleteFavoriteItemView
 
 urlpatterns = [
     path('product/', ProductView.as_view(), name='get-all-products'),
@@ -31,4 +32,11 @@ urlpatterns = [
     path('payment/', PaymentListView.as_view(), name='get-all-user-payments'),
     path('payment/create', CreatePaymentView.as_view(), name='create-payment'),
     path('payment/<int:id>', PaymentDetailAPIView.as_view(), name='payment'),
+    path('cart/', CartItemListView.as_view(), name='get-all-user-cart-items'),
+    path('cart/add-to-cart', AddToCartView.as_view(), name='add-to-cart'),
+    path('cart/<int:id>', CartItemDetailAPIView.as_view(), name='cart'),
+    path('cart/<int:id>/change-qty', ChangeQtyCartItemAPIView.as_view(), name='change-qty'),
+    path('favorite/', FavoriteItemListView.as_view(), name='get-all-user-favorite-items'),
+    path('favorite/add-to-favorite', AddItemToFavoriteView.as_view(), name='add-to-favorite'),
+    path('favorite/<int:id>', DeleteFavoriteItemView.as_view(), name='delete-favorite'),
 ]

@@ -1,8 +1,8 @@
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import generics, status, filters, response
+from rest_framework import generics, status, filters, response, serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveUpdateDestroyAPIView, RetrieveUpdateAPIView, \
-    GenericAPIView, UpdateAPIView
+    GenericAPIView, UpdateAPIView, RetrieveDestroyAPIView, DestroyAPIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 from authentication.models import User
@@ -11,8 +11,10 @@ from .pagination import CustomPageNumberPagination
 from .serializers import ProductSerializer, CreateProductSerializer, CategorySerializer, UserSerializer, \
     VariationSerializer, OrderSerializer, ReviewSerializer, ProductDetailSerializer, ViewOrderSerializer, \
     ViewReviewSerializer, ViewUserSerializer, UpdateProfileSerializer, UpdateUserSerializer, AddressSerializer, \
-    PaymentProviderSerializer, PaymentSerializer, ViewPaymentSerializer
-from .models import Product, Category, Variation, Order, Review, Address, PaymentProvider, Payment
+    PaymentProviderSerializer, PaymentSerializer, ViewPaymentSerializer, ViewCartItemSerializer, CartItemSerializer, \
+    FavoriteItemSerializer, ViewFavoriteItemSerializer
+from .models import Product, Category, Variation, Order, Review, Address, PaymentProvider, Payment, CartItem, \
+    FavoriteItem
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
@@ -91,6 +93,9 @@ class CategoryDetailAPIView(RetrieveUpdateDestroyAPIView):
     permission_classes = (IsAuthenticated,)
     lookup_field = "id"
     queryset = Category.objects.all()
+
+    def perform_destroy(self, instance):
+        instance.soft_delete()
 
 
 class CreateVariationView(CreateAPIView):
@@ -256,6 +261,125 @@ class PaymentDetailAPIView(RetrieveUpdateDestroyAPIView):
     permission_classes = (IsAuthenticated,)
     lookup_field = "id"
     queryset = Payment.objects.all()
+
+    def get_object(self):
+        obj = super().get_object()
+        if obj.created_by != self.request.user:
+            raise PermissionDenied("You do not have permission to access this.")
+        return obj
+
+
+class CartItemListView(ListAPIView):
+    permission_classes = (IsAuthenticated,)
+    serializer_class = ViewCartItemSerializer
+
+    def get_queryset(self):
+        return CartItem.objects.filter(created_by=self.request.user)
+
+
+class AddToCartView(GenericAPIView):
+    serializer_class = CartItemSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        user = request.user
+        product = Product.objects.get(id=request.data['product'])
+        variation = Variation.objects.get(id=request.data['variation'])
+        instance = CartItem.objects.filter(created_by=user, variation=variation, product=product).first()
+        # Check if cart item already exists in user's cart
+        if instance is not None:
+            # If true then update qty
+            request.data['qty'] = instance.qty + 1
+            serializer = self.serializer_class(instance, data=request.data, context={'request': request})
+        else:
+            # Else create new cart item
+            serializer = self.serializer_class(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return response.Response(serializer.data, status=status.HTTP_200_OK)
+
+        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CartItemDetailAPIView(RetrieveDestroyAPIView):
+    serializer_class = ViewCartItemSerializer
+    permission_classes = (IsAuthenticated,)
+    lookup_field = "id"
+    queryset = CartItem.objects.all()
+
+    def get_object(self):
+        obj = super().get_object()
+        if obj.created_by != self.request.user:
+            raise PermissionDenied("You do not have permission to access this.")
+        return obj
+
+
+class ChangeQtyCartItemAPIView(UpdateAPIView):
+    serializer_class = CartItemSerializer
+    permission_classes = (IsAuthenticated,)
+    lookup_field = "id"
+    queryset = CartItem.objects.all()
+
+    def get_object(self):
+        obj = super().get_object()
+        if obj.created_by != self.request.user:
+            raise PermissionDenied("You do not have permission to access this.")
+        return obj
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        action = self.request.query_params.get('action')
+        if action is None:
+            action = 'inc'
+
+        if action == 'inc':
+            instance.qty += 1
+        elif action == 'dec':
+            if instance.qty <= 1:
+                raise serializers.ValidationError("Quantity cannot be less than 1.")
+            instance.qty -= 1
+        else:
+            raise serializers.ValidationError("Invalid action type.")
+
+        instance.save()
+
+
+class FavoriteItemListView(ListAPIView):
+    permission_classes = (IsAuthenticated,)
+    serializer_class = ViewFavoriteItemSerializer
+
+    def get_queryset(self):
+        return FavoriteItem.objects.filter(created_by=self.request.user)
+
+
+class AddItemToFavoriteView(CreateAPIView):
+    serializer_class = FavoriteItemSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        product = Product.objects.get(id=request.data['product'])
+        variation = Variation.objects.get(id=request.data['variation'])
+        instance = FavoriteItem.objects.filter(created_by=user, variation=variation, product=product).first()
+        # Check if favorite item already exists in user's favorite list
+        if instance is not None:
+            # If true then throw error
+            raise serializers.ValidationError("Item's already in favorite items")
+        else:
+            # Else add to favorite list
+            serializer = self.serializer_class(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return response.Response(serializer.data, status=status.HTTP_200_OK)
+
+        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DeleteFavoriteItemView(DestroyAPIView):
+    serializer_class = FavoriteItemSerializer
+    permission_classes = (IsAuthenticated,)
+    queryset = FavoriteItem.objects.all()
+    lookup_field = 'id'
 
     def get_object(self):
         obj = super().get_object()
