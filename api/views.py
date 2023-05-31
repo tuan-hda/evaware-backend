@@ -11,7 +11,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from authentication.models import User
 from helpers.mixins import IncludeDeleteMixin
 from .pagination import CustomPageNumberPagination
-from .serializers import ProductSerializer, CreateProductSerializer, CategorySerializer, UserSerializer, \
+from .serializers import CreateProductSerializer, CategorySerializer, UserSerializer, \
     VariationSerializer, OrderSerializer, ReviewSerializer, ProductDetailSerializer, ViewOrderSerializer, \
     ViewReviewSerializer, ViewUserSerializer, UpdateProfileSerializer, UpdateUserSerializer, AddressSerializer, \
     PaymentProviderSerializer, PaymentSerializer, ViewPaymentSerializer, ViewCartItemSerializer, CartItemSerializer, \
@@ -59,9 +59,6 @@ class ProductDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView):
             return ProductDetailSerializer
         else:
             return CreateProductSerializer
-
-    def perform_destroy(self, instance):
-        instance.soft_delete()
 
 
 class CategoryView(ListAPIView):
