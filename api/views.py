@@ -1,3 +1,6 @@
+from datetime import datetime, timedelta
+
+from django.utils.timezone import make_aware
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, status, filters, response, serializers
 from rest_framework.exceptions import PermissionDenied
@@ -17,6 +20,8 @@ from .models import Product, Category, Variation, Order, Review, Address, Paymen
     FavoriteItem, Voucher
 from rest_framework.views import APIView
 from rest_framework.response import Response
+import pandas as pd
+import numpy as np
 
 
 class ProductView(IncludeDeleteMixin, ListAPIView):
@@ -31,21 +36,6 @@ class ProductView(IncludeDeleteMixin, ListAPIView):
     ordering_fields = ['id', 'name', 'desc', 'price', 'avg_rating', 'variation__name', 'reviews_count',
                        'category__name', 'category__id']
 
-    # class GetProduct(APIView):
-
-
-#     serializer_class = ProductSerializer
-#
-#     def get(self, request, product_id, format=None):
-#         if product_id is not None:
-#             product = Product.objects.filter(id=product_id)
-#             if len(product) > 0:
-#                 data = ProductSerializer(product[0]).data
-#                 return Response(data, status=status.HTTP_200_OK)
-#             return Response({'Product Not Found': 'Invalid Product Id'}, status=status.HTTP_404_NOT_FOUND)
-#
-#         return Response({'Bad Request': 'Id Parameter Not Found'}, status=status.HTTP_400_BAD_REQUEST)
-
 
 class CreateProductView(CreateAPIView):
     serializer_class = CreateProductSerializer
@@ -53,21 +43,6 @@ class CreateProductView(CreateAPIView):
 
     def perform_create(self, serializer):
         return serializer.save()
-
-    # def post(self, request, format=None):
-    #     product = Product()
-    #
-    #     if not self.request.session.exists(self.request.session.session_key):
-    #         self.request.session.create()
-    #
-    #     serializer = self.serializer_class(data=request.data)
-    #     if serializer.is_valid():
-    #         name, desc, price = serializer.data.get('name'), serializer.data.get('desc'), serializer.data.get('price')
-    #         product = Product(name=name, desc=desc, price=price)
-    #         product.save()
-    #
-    #     if product is not None:
-    #         return Response(ProductSerializer(product).data, status=status.HTTP_201_CREATED)
 
 
 class ProductDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView):
@@ -172,6 +147,7 @@ class OrderDetailAPIView(RetrieveUpdateAPIView):
         obj = super().get_object()
         if obj.created_by != self.request.user and not self.request.user.is_staff and not self.request.user.is_superuser:
             raise PermissionDenied("You do not have permission to access this order.")
+
         return obj
 
 
@@ -518,3 +494,160 @@ class FileUploadView(GenericAPIView):
             response_data = serializer.data
             return Response(response_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SaleStatisticsAPIView(GenericAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = (IsAuthenticated, IsAdminUser)
+
+    def get_df_sum(self, queryset):
+        serializer = OrderSerializer(queryset, many=True)
+        df = pd.DataFrame(serializer.data)
+        df['created_at'] = pd.to_datetime(df['created_at'])
+        df['month'] = df['created_at'].dt.to_period('M')
+        total = df['total'].sum()
+        return df, total
+
+    def analyze(self, prev_queryset, queryset):
+        df, total = self.get_df_sum(queryset)
+        monthly_totals = df.groupby('month')['total'].sum()
+        monthly_totals.index = monthly_totals.index.astype(str)
+
+        if len(prev_queryset) != 0:
+            _, prev_total = self.get_df_sum(prev_queryset)
+            growth = int(total * 100 / float(prev_total) - 100)
+        else:
+            growth = 0
+        return {
+            'total': total,
+            'monthly_totals': monthly_totals.to_dict(),
+            'growth': growth
+        }
+
+    def get(self, request):
+        from_date = request.query_params.get('from_date')
+        to_date = request.query_params.get('to_date')
+
+        try:
+            from_date = make_aware(datetime.strptime(from_date, '%Y-%m-%d'))
+            to_date = make_aware(datetime.strptime(to_date, '%Y-%m-%d'))
+        except ValueError:
+            return Response({'error': 'Invalid date format'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if (to_date.year - from_date.year) * 12 + to_date.month - from_date.month > 6:
+            raise serializers.ValidationError('Range exceeds 6 month!')
+        num_dates = (to_date - from_date).days + 1
+        prev_from_date = from_date - timedelta(days=num_dates)
+        prev_to_date = from_date - timedelta(milliseconds=1)
+
+        queryset = Order.objects.filter(status='Success', created_at__range=(from_date, to_date))
+        prev_queryset = Order.objects.filter(status='Success',
+                                             created_at__range=(prev_from_date, prev_to_date))
+        result = self.analyze(prev_queryset, queryset)
+
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class TopProductStatisticsAPIView(GenericAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = (IsAuthenticated, IsAdminUser)
+
+    def analyze(self, queryset):
+        serializer = self.serializer_class(queryset, many=True)
+        pd.set_option('display.max_columns', None)
+        pd.set_option('display.max_rows', None)
+        df = pd.DataFrame(serializer.data)
+
+        top_products = {}
+
+        # Iterate over each order
+        for order in df['order_details']:
+            # Iterate over order details in the order
+            for order_detail in order:
+                product_id = order_detail['product']
+                qty = order_detail['qty']
+                price = order_detail['price']
+                total = qty * price
+                if product_id in top_products:
+                    sales = top_products[product_id].get('sales')
+                    revenue = top_products[product_id].get('revenue')
+                    top_products[product_id] = {
+                        'sales': sales + qty,
+                        'revenue': revenue + total
+                    }
+                else:
+                    top_products[product_id] = {
+                        'sales': qty,
+                        'revenue': + total
+                    }
+
+        top_products_df = pd.DataFrame.from_dict(top_products, orient='index')
+        top_products_df = top_products_df.sort_values(by=['revenue', 'sales'], ascending=[False, False])
+        return top_products_df.reset_index().rename(columns={'index': 'product'}).to_dict(orient='records')
+
+    def get(self, request):
+        range_type = request.query_params.get('range_type')
+        if not range_type:
+            range_type = 'monthly'
+        elif range_type not in ['monthly', 'yearly', 'weekly', 'quarterly']:
+            raise serializers.ValidationError('Range type is not valid')
+
+        current_time = datetime.now()
+        current_time_date = current_time.date()
+        if range_type == 'monthly':
+            queryset = Order.objects.filter(status='Success', created_at__month=current_time_date.month,
+                                            created_at__lte=current_time)
+        elif range_type == 'weekly':
+            from_date = current_time_date - timedelta(days=6)
+            queryset = Order.objects.filter(status='Success', created_at__gte=from_date, created_at__lte=current_time)
+        elif range_type == 'yearly':
+            queryset = Order.objects.filter(status='Success', created_at__year=current_time_date.year,
+                                            created_at__lte=current_time)
+        else:
+            from_month = current_time_date.month - 2
+            queryset = Order.objects.filter(status='Success', created_at__month__gte=from_month,
+                                            created_at__lte=current_time)
+
+        return response.Response(self.analyze(queryset), status=status.HTTP_200_OK)
+
+
+class TopCategoriesAPIView(GenericAPIView):
+    serializer_class = ViewOrderSerializer
+    permission_classes = (IsAuthenticated, IsAdminUser)
+
+    def analyze(self, queryset):
+        serializer = self.serializer_class(queryset, many=True)
+        df = pd.DataFrame(serializer.data)
+
+        new_buyers = df['created_by'].apply(lambda x: x['id']).nunique()
+        total_orders = len(queryset)
+        new_buyers_percent = round(new_buyers * 100.0 / total_orders)
+        returning_percent = 100 - new_buyers_percent
+
+        category = {}
+        sum_qty = 0
+
+        for order in df['order_details']:
+            for order_detail in order:
+                category_id = order_detail['product']['category']
+                qty = order_detail['qty']
+                if category_id in category:
+                    category[category_id] += qty
+                else:
+                    category[category_id] = qty
+                sum_qty += qty
+        top_categories_df = pd.DataFrame.from_dict(category, orient='index', columns=['qty'])
+        top_categories_df = top_categories_df.sort_values(by=['qty'], ascending=[False])
+        arr = top_categories_df.reset_index().rename(columns={'index': 'category'}).to_dict(orient="records")
+        for obj in arr:
+            obj['percentage'] = round(obj['qty'] * 100.0 / sum_qty)
+        return arr, new_buyers_percent, returning_percent
+
+    def get(self, request):
+        queryset = Order.objects.filter(status='Success')
+        data, new_buyers_percent, returning_percent = self.analyze(queryset)
+        return response.Response({
+            'data': data,
+            'new_buyers_percent': new_buyers_percent,
+            'returning_percent': returning_percent
+        }, status=status.HTTP_200_OK)

@@ -55,6 +55,8 @@ class ReviewSerializer(serializers.ModelSerializer):
 
 
 class ViewReviewSerializer(serializers.ModelSerializer):
+    created_by = UserSerializer()
+
     class Meta:
         model = Review
         fields = '__all__'
@@ -117,6 +119,7 @@ class ViewOrderDetailSerializer(serializers.ModelSerializer):
 
 class ViewOrderSerializer(serializers.ModelSerializer):
     order_details = ViewOrderDetailSerializer(many=True)
+    created_by = UserSerializer()
 
     class Meta:
         model = Order
@@ -142,11 +145,27 @@ class OrderSerializer(serializers.ModelSerializer):
     order_details = OrderDetailSerializer(many=True)
     voucher = serializers.PrimaryKeyRelatedField(queryset=Voucher.objects.all(), allow_null=True, required=False)
     voucher_code = serializers.CharField(max_length=30, required=False)
+    created_by = UserSerializer()
 
     class Meta:
         model = Order
         fields = '__all__'
         depth = 1
+
+    def check_status(self, instance, validated_data):
+        user = self.context['request'].user
+        status = validated_data.get('status')
+        if not status:
+            return
+        if status not in ['In progress', 'Delivering', 'Cancelled', 'Success']:
+            raise serializers.ValidationError(
+                "Invalid status type. Must be one of ['In progress', 'Delivering', 'Cancelled', 'Success']")
+        if instance.status != status and instance.status != 'Success' and status != 'Cancelled' and not user.is_staff:
+            raise serializers.ValidationError('You do not have permissions to perform this action.')
+
+    def update(self, instance, validated_data):
+        self.check_status(instance, validated_data)
+        return super().update(instance, validated_data)
 
     def check_voucher(self, validated_data):
         voucher = validated_data.get('voucher')
@@ -219,6 +238,8 @@ class PaymentProviderSerializer(serializers.ModelSerializer):
 
 
 class ViewPaymentSerializer(serializers.ModelSerializer):
+    created_by = UserSerializer()
+
     class Meta:
         model = Payment
         exclude = ('created_by',)
