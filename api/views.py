@@ -18,13 +18,29 @@ from .serializers import CreateProductSerializer, CategorySerializer, UserSerial
     FavoriteItemSerializer, ViewFavoriteItemSerializer, ListProductSerializer, VoucherSerializer, FileUploadSerializer
 from .models import Product, Category, Variation, Order, Review, Address, PaymentProvider, Payment, CartItem, \
     FavoriteItem, Voucher
-from rest_framework.views import APIView
 from rest_framework.response import Response
 import pandas as pd
-import numpy as np
 
 
 class ProductView(IncludeDeleteMixin, ListAPIView):
+    """
+    API View cho việc hiển thị danh sách sản phẩm (Product).
+
+    Thuộc tính:
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập
+        serializer_class (ListProductSerializer): Serializer được sử dụng để chuyển đổi dữ liệu sản phẩm.
+        pagination_class (CustomPageNumberPagination): Lớp phân trang được sử dụng
+        filter_backends (list): Danh sách các lớp lọc dữ liệu được áp dụng
+
+        filterset_fields (list): Danh sách các trường dữ liệu có thể được lọc
+        search_fields (list): Danh sách các trường dữ liệu có thể được tìm kiếm
+        ordering_fields (list): Danh sách các trường dữ liệu có thể được sắp xếp
+
+    Kế thừa:
+        IncludeDeleteMixin: hỗ trợ truy vấn và thực hiện soft delete
+        ListAPIView: API truy vấn dưới dạng danh sách
+
+    """
     permission_classes = (IsAuthenticated,)
     serializer_class = ListProductSerializer
     pagination_class = CustomPageNumberPagination
@@ -38,14 +54,50 @@ class ProductView(IncludeDeleteMixin, ListAPIView):
 
 
 class CreateProductView(CreateAPIView):
+    """
+    API View cho việc tạo mới sản phẩm (Product).
+
+    Thuộc tính:
+        serializer_class (CreateProductSerializer): Serializer được sử dụng để chuyển đổi dữ liệu tạo mới sản phẩm.
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view
+
+    Kế thừa:
+        CreateAPIView: API tạo đối tượng
+
+    """
     serializer_class = CreateProductSerializer
     permission_classes = (IsAuthenticated, IsAdminUser)
 
-    def perform_create(self, serializer):
-        return serializer.save()
-
 
 class ProductDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView):
+    """
+    View cho việc hiển thị, cập nhật và xóa sản phẩm chi tiết (Product).
+
+    Thuộc tính:
+        lookup_field (str): Trường dùng để tìm kiếm sản phẩm
+
+    Methods:
+        get_permissions():
+            Trả về danh sách các lớp kiểm tra quyền truy cập cho view. Nếu phương thức request là GET thì chỉ cần đăng nhập, ngược lại cần phải là staff user
+
+            Input: none
+
+            Output:
+                list: Danh sách các lớp kiểm tra quyền truy cập.
+
+
+        get_serializer_class():
+            Trả về lớp serializer phù hợp với phương thức request.
+
+            Input: none
+
+            Output:
+                serializer_class: Lớp serializer phù hợp.
+
+    Kế thừa:
+        IncludeDeleteMixin: hỗ trợ truy vấn và thực hiện soft delete
+        RetrieveUpdateDestroyAPIView: API truy vấn thông tin chi tiết, cập nhật và xóa
+    """
     lookup_field = "id"
 
     def get_permissions(self):
@@ -61,18 +113,65 @@ class ProductDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView):
             return CreateProductSerializer
 
 
-class CategoryView(ListAPIView):
+class CategoryView(IncludeDeleteMixin, ListAPIView):
+    """
+    View cho việc hiển thị danh sách các danh mục (Category).
+
+    Thuộc tính:
+        queryset (QuerySet): QuerySet chứa danh sách các danh mục sản phẩm.
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated).
+        serializer_class (CategorySerializer): Serializer được sử dụng để chuyển đổi dữ liệu danh mục.
+
+    Kế thừa:
+        IncludeDeleteMixin: hỗ trợ truy vấn và thực hiện soft delete
+        ListAPIView: API truy vấn dưới dạng danh sách
+    """
+
     queryset = Category.objects.all().order_by('created_at')
     permission_classes = (IsAuthenticated,)
     serializer_class = CategorySerializer
 
 
 class CreateCategoryView(CreateAPIView):
+    """
+    View cho việc tạo mới danh mục (Category).
+
+    Thuộc tính:
+        serializer_class (CategorySerializer): Serializer được sử dụng để chuyển đổi dữ liệu tạo mới danh mục.
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated, IsAdminUser)
+
+    Kế thừa:
+        CreateAPIView: API tạo đối tượng
+    """
     serializer_class = CategorySerializer
     permission_classes = (IsAuthenticated, IsAdminUser)
 
 
-class CategoryDetailAPIView(RetrieveUpdateDestroyAPIView):
+class CategoryDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView):
+    """
+    View cho việc hiển thị, cập nhật và xóa chi tiết danh mục (Category).
+
+    Attributes:
+        serializer_class (CategorySerializer): Serializer được sử dụng để chuyển đổi dữ liệu danh mục.
+        lookup_field (str): Trường dùng để tìm kiếm danh mục
+        queryset (QuerySet): QuerySet chứa danh sách các danh mục.
+
+    Methods:
+        get_permissions():
+            Trả về danh sách các lớp kiểm tra quyền truy cập cho view. Nếu phương thức request là GET thì chỉ cần đăng nhập, ngược lại cần phải là staff user
+
+            Input: none
+
+            Output:
+                list: Danh sách các lớp kiểm tra quyền truy cập.
+
+
+    Kế thừa:
+        IncludeDeleteMixin: hỗ trợ truy vấn và thực hiện soft delete
+        RetrieveUpdateDestroyAPIView: API truy vấn thông tin chi tiết, cập nhật và xóa
+
+    """
+
     serializer_class = CategorySerializer
     lookup_field = "id"
     queryset = Category.objects.all()
@@ -82,9 +181,6 @@ class CategoryDetailAPIView(RetrieveUpdateDestroyAPIView):
             return [IsAuthenticated()]
         else:
             return [IsAuthenticated(), IsAdminUser()]
-
-    def perform_destroy(self, instance):
-        instance.soft_delete()
 
 
 class CreateVariationView(CreateAPIView):
