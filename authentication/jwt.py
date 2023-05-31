@@ -9,6 +9,24 @@ from django.conf import settings
 
 
 class JWTAuthentication(BaseAuthentication):
+    """
+    Lớp JWTAuthentication thực hiện xác thực người dùng bằng JWT token. Đây là lớp authentication mặc định được thiết lập trong setting.py
+
+    Phương thức:
+        authenticate(request): Thực hiện quá trình xác thực người dùng dựa trên JWT token.
+        Input:
+            request (HttpRequest): Đối tượng HttpRequest chứa yêu cầu từ client.
+
+        Output:
+            tuple: Thông tin người dùng được xác thực và JWT token.
+
+        Raises:
+            AuthenticationFailed: Nếu quá trình xác thực không thành công.
+
+    Note:
+        - Yêu cầu JWT đã được cài đặt và SECRET_KEY đã được cấu hình trong settings.py.
+        - Yêu cầu trường email được sử dụng làm thông tin xác thực cho người dùng.
+    """
 
     def authenticate(self, request):
 

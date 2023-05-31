@@ -55,10 +55,26 @@ class MyUserManager(UserManager):
 
 class User(AbstractBaseUser, PermissionsMixin, TrackingModel):
     """
-    An abstract base class implementing a fully featured User model with
-    admin-compliant permissions.
+    Lớp User mở rộng từ AbstractBaseUser và PermissionsMixin, đại diện cho người dùng trong hệ thống.
 
-    Email and password are required. Other fields are optional.
+    Thuộc tính:
+        email (EmailField): Email của người dùng (độc nhất, không được để trống).
+        is_staff (BooleanField): Trạng thái nhân viên, xác định người dùng có thể đăng nhập vào trang quản trị hay không (mặc định là False).
+        is_active (BooleanField): Trạng thái hoạt động, xác định xem người dùng có được coi là hoạt động hay không (mặc định là True).
+        date_joined (DateTimeField): Ngày tham gia hệ thống (mặc định là ngày và giờ hiện tại).
+        email_verified (BooleanField): Trạng thái xác minh email, xác định xem email của người dùng đã được xác minh hay chưa (mặc định là False).
+        dob (DateField): Ngày sinh của người dùng
+        full_name (TextField): Họ và tên đầy đủ của người dùng
+        phone (CharField): Số điện thoại của người dùng (độ dài tối đa 15).
+        gender (CharField): Giới tính của người dùng (độ dài tối đa 15, mặc định là 'Male').
+        avatar (TextField): Ảnh đại diện của người dùng
+        objects (MyUserManager): Đối tượng quản lý người dùng.
+
+    Property:
+        token (str): Token JWT của người dùng.
+
+    Note:
+        - Yêu cầu cài đặt SECRET_KEY trong settings.py.
     """
     email = models.EmailField(_("email address"), blank=False, unique=True, error_messages={
         'unique': _("A user with that email already exists."),

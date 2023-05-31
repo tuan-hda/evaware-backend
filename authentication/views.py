@@ -9,16 +9,25 @@ from authentication.serializers import RegisterSerializer, LoginSerializer, Chan
 
 
 # Create your views here.
-# class AuthUserAPIView(GenericAPIView):
-#     permission_classes = (permissions.IsAuthenticated,)
-#
-#     def get(self, request):
-#         user = request.user
-#         serializer = ViewUserSerializer(user)
-#         return response.Response({'user': serializer.data})
-
-
 class RegisterAPIView(GenericAPIView):
+    """
+    API view để đăng ký người dùng.
+
+    Thuộc tính:
+        authentication_classes: Danh sách các lớp xác thực được sử dụng cho view này.
+        serializer_class: Lớp Serializer cho việc đăng ký người dùng.
+
+    Phương thức:
+        post(self, request):
+            Xử lý yêu cầu POST để đăng ký người dùng.
+            Input:
+                request (HttpRequest): Đối tượng yêu cầu HTTP.
+
+            Output:
+                Response: Đối tượng phản hồi HTTP với dữ liệu người dùng.
+
+    """
+
     authentication_classes = []
 
     serializer_class = RegisterSerializer
@@ -34,6 +43,25 @@ class RegisterAPIView(GenericAPIView):
 
 
 class ChangePasswordAPIView(GenericAPIView):
+    """
+    API view để thay đổi mật khẩu người dùng.
+
+    Thuộc tính:
+        permission_classes: Danh sách các lớp quyền truy cập được sử dụng cho view này. [permissions.IsAuthenticated, ]
+        serializer_class: Lớp Serializer cho việc thay đổi mật khẩu người dùng.
+
+    Phương thức:
+        put(self, request, **kwargs):
+            Xử lý yêu cầu PUT để thay đổi mật khẩu người dùng.
+            Input:
+                request (HttpRequest): Đối tượng yêu cầu HTTP.
+                **kwargs: Các đối số khác
+
+            Output:
+                Response: Đối tượng phản hồi HTTP với thông báo thành công hoặc lỗi.
+
+    """
+
     permission_classes = [permissions.IsAuthenticated, ]
     serializer_class = ChangePasswordSerializer
 
@@ -49,6 +77,24 @@ class ChangePasswordAPIView(GenericAPIView):
 
 
 class LoginAPIView(GenericAPIView):
+    """
+    API view để đăng nhập người dùng.
+
+    Thuộc tính:
+        authentication_classes: Danh sách các lớp xác thực được sử dụng cho view này (rỗng, cho phép bất cứ ai cũng có thể sử dụng).
+        serializer_class: Lớp Serializer cho việc đăng nhập người dùng.
+
+    Phương thức:
+        post(self, request):
+            Xử lý yêu cầu POST để đăng nhập người dùng.
+
+            Input:
+                request (HttpRequest): Đối tượng yêu cầu HTTP.
+
+            Output:
+                Response: Đối tượng phản hồi HTTP với dữ liệu người dùng hoặc thông báo lỗi.
+
+    """
     authentication_classes = []
 
     serializer_class = LoginSerializer
