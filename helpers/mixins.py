@@ -5,26 +5,26 @@ from api.models import Product
 
 class IncludeDeleteMixin:
     """
-    Mixin thêm hàm cho phép truy vấn các sản phẩm đã bị xóa (soft delete) trong danh sách (Chỉ có staff mới được truy vấn). Mixin cũng thay thế hàm perform_destroy để ghi đè hàm khác. Mixin này nên được kế thừa đầu tiên, để nó ghi đè các phương thức từ các lớp khác.
+    Mixin thêm hàm cho phép truy vấn các đối tượng đã bị xóa (soft delete) trong danh sách (Chỉ có staff mới được truy vấn). Mixin cũng thay thế hàm perform_destroy để ghi đè hàm khác. Mixin này nên được kế thừa đầu tiên, để nó ghi đè các phương thức từ các lớp khác.
 
     Phương thức:
-        get_queryset():
-            Trả về queryset của các sản phẩm, bao gồm hoặc không bao gồm các sản phẩm đã bị xóa.
+        get_queryset(Model):
+            Trả về queryset của các đối tượng, bao gồm hoặc không bao gồm các đối tượng đã bị xóa.
 
             Input: none
 
             Output:
-                QuerySet: queryset của các sản phẩm.
+                QuerySet: queryset của các đối tượng.
 
             Raises:
-                PermissionDenied: Nếu người dùng là khách hàng, họ không có quyền truy cập vào các sản phẩm đã bị xóa.
+                PermissionDenied: Nếu người dùng là khách hàng, họ không có quyền truy cập vào các đối tượng đã bị xóa.
 
 
         perform_destroy(instance):
-            Thực hiện xóa (soft delete) một sản phẩm.
+            Thực hiện xóa (soft delete) một đối tượng.
 
             Input:
-                instance (Product): Sản phẩm cần bị xóa.
+                instance (Model): đối tượng cần bị xóa.
 
             Output: none
 
@@ -36,9 +36,9 @@ class IncludeDeleteMixin:
             user = self.request.user
             if not user.is_staff:
                 raise PermissionDenied("You don't have permission to access this")
-            queryset = Product.objects.all()
+            queryset = self.query_model.objects.all()
         else:
-            queryset = Product.undeleted_objects.all()
+            queryset = self.query_model.undeleted_objects.all()
 
         return queryset
 

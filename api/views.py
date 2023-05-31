@@ -29,6 +29,7 @@ class ProductView(IncludeDeleteMixin, ListAPIView):
     Thuộc tính:
         permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập
         serializer_class (ListProductSerializer): Serializer được sử dụng để chuyển đổi dữ liệu sản phẩm.
+        query_model (Product): Model biến thể được sử dụng để lấy queryset.
         pagination_class (CustomPageNumberPagination): Lớp phân trang được sử dụng
         filter_backends (list): Danh sách các lớp lọc dữ liệu được áp dụng
 
@@ -43,6 +44,7 @@ class ProductView(IncludeDeleteMixin, ListAPIView):
     """
     permission_classes = (IsAuthenticated,)
     serializer_class = ListProductSerializer
+    query_model = Product
     pagination_class = CustomPageNumberPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
 
@@ -75,6 +77,7 @@ class ProductDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView):
 
     Thuộc tính:
         lookup_field (str): Trường dùng để tìm kiếm sản phẩm
+        query_model (Product): Model biến thể được sử dụng để lấy queryset.
 
     Methods:
         get_permissions():
@@ -99,6 +102,7 @@ class ProductDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView):
         RetrieveUpdateDestroyAPIView: API truy vấn thông tin chi tiết, cập nhật và xóa
     """
     lookup_field = "id"
+    query_model = Product
 
     def get_permissions(self):
         if self.request.method == 'GET':
@@ -121,12 +125,14 @@ class CategoryView(IncludeDeleteMixin, ListAPIView):
         queryset (QuerySet): QuerySet chứa danh sách các danh mục sản phẩm.
         permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated).
         serializer_class (CategorySerializer): Serializer được sử dụng để chuyển đổi dữ liệu danh mục.
+        query_model (Category): Model biến thể được sử dụng để lấy queryset.
 
     Kế thừa:
         IncludeDeleteMixin: hỗ trợ truy vấn và thực hiện soft delete
         ListAPIView: API truy vấn dưới dạng danh sách
     """
 
+    query_model = Category
     queryset = Category.objects.all().order_by('created_at')
     permission_classes = (IsAuthenticated,)
     serializer_class = CategorySerializer
@@ -152,6 +158,7 @@ class CategoryDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView):
     View cho việc hiển thị, cập nhật và xóa chi tiết danh mục (Category).
 
     Attributes:
+        query_model (Category): Model biến thể được sử dụng để lấy queryset.
         serializer_class (CategorySerializer): Serializer được sử dụng để chuyển đổi dữ liệu danh mục.
         lookup_field (str): Trường dùng để tìm kiếm danh mục
         queryset (QuerySet): QuerySet chứa danh sách các danh mục.
@@ -172,6 +179,7 @@ class CategoryDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView):
 
     """
 
+    query_model = Category
     serializer_class = CategorySerializer
     lookup_field = "id"
     queryset = Category.objects.all()
@@ -184,14 +192,45 @@ class CategoryDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView):
 
 
 class CreateVariationView(CreateAPIView):
+    """
+    View cho việc tạo mới biến thể (Variation).
+
+    Attributes:
+        serializer_class (VariationSerializer): Serializer được sử dụng để chuyển đổi dữ liệu tạo mới biến thể.
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated, IsAdminUser)
+
+    Kế thừa:
+        CreateAPIView: API tạo đối tượng
+    """
     serializer_class = VariationSerializer
     permission_classes = (IsAuthenticated, IsAdminUser)
 
 
-class VariationDetailAPIView(RetrieveUpdateDestroyAPIView):
+class VariationDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView):
+    """
+    View cho việc hiển thị, cập nhật và xóa chi tiết biến thể (Variation).
+
+    Thuộc tính:
+        serializer_class (VariationSerializer): Serializer được sử dụng để chuyển đổi dữ liệu biến thể.
+        lookup_field (str): Trường dùng để tìm kiếm biến thể
+        query_model (Variation): Model biến thể được sử dụng để lấy queryset.
+
+    Phương thức:
+        get_permissions():
+            Trả về danh sách các lớp kiểm tra quyền truy cập cho view. Nếu phương thức request là GET thì chỉ cần đăng nhập, ngược lại cần phải là staff user
+
+            Input: none
+
+            Output:
+                list: Danh sách các lớp kiểm tra quyền truy cập.
+
+    Kế thừa:
+        IncludeDeleteMixin: hỗ trợ truy vấn và thực hiện soft delete
+        RetrieveUpdateDestroyAPIView: API truy vấn thông tin chi tiết, cập nhật và xóa
+    """
     serializer_class = VariationSerializer
     lookup_field = "id"
-    queryset = Variation.objects.all()
+    query_model = Variation
 
     def get_permissions(self):
         if self.request.method == 'GET':
@@ -199,33 +238,84 @@ class VariationDetailAPIView(RetrieveUpdateDestroyAPIView):
         else:
             return [IsAuthenticated(), IsAdminUser()]
 
-    def perform_destroy(self, instance):
-        instance.soft_delete()
-
 
 class UserView(ListAPIView):
+    """
+    View cho việc hiển thị danh sách người dùng (User).
+
+    Thuộc tính:
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view  (IsAuthenticated, IsAdminUser)
+        serializer_class (UserSerializer): Serializer được sử dụng để chuyển đổi dữ liệu người dùng.
+
+    Kế thừa:
+        ListAPIView: API truy vấn dưới dạng danh sách
+
+    """
     permission_classes = (IsAuthenticated, IsAdminUser)
     serializer_class = UserSerializer
 
-    def get_queryset(self):
-        # Check if the request user is the owner of the product
-        if not self.request.user.is_superuser:
-            raise PermissionDenied("You do not have permission to access user information.")
-        return User.objects.all()
-
 
 class OrderView(ListAPIView):
-    queryset = Order.objects.all().order_by('created_at')
+    """
+    View cho việc hiển thị danh sách đơn hàng (Order).
+
+    Thuộc tính:
+        queryset (QuerySet): QuerySet chứa danh sách các đơn hàng
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated, IsAdminUser)
+        serializer_class (ViewOrderSerializer): Serializer được sử dụng để chuyển đổi dữ liệu đơn hàng.
+
+    Kế thừa:
+        ListAPIView: API truy vấn dưới dạng danh sách
+    """
+    queryset = Order.objects.all()
     permission_classes = (IsAuthenticated, IsAdminUser)
     serializer_class = ViewOrderSerializer
 
 
 class CreateOrderAPIView(CreateAPIView):
+    """
+    View cho việc tạo đơn hàng mới (Order).
+
+    Thuộc tính:
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+        serializer_class (OrderSerializer): Serializer được sử dụng để chuyển đổi dữ liệu đơn hàng.
+
+    Kế thừa:
+        CreateAPIView: API tạo đối tượng
+    """
     permission_classes = (IsAuthenticated,)
     serializer_class = OrderSerializer
 
 
 class OrderDetailAPIView(RetrieveUpdateAPIView):
+    """
+    View cho việc hiển thị, cập nhật chi tiết đơn hàng (Order).
+
+    Thuộc tính:
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (đã được xác thực).
+        lookup_field (str): Trường dùng để tìm kiếm đơn hàng (mặc định là 'id').
+        queryset (QuerySet): QuerySet chứa danh sách các đơn hàng.
+
+    Phương thức:
+        get_serializer_class():
+            Trả về lớp serializer phù hợp với phương thức request.
+
+            Input: none
+
+            Output:
+                serializer_class: Lớp serializer phù hợp.
+
+        get_object():
+            Trả về đối tượng đơn hàng cần hiển thị hoặc cập nhật.
+            Output:
+                obj: Đối tượng đơn hàng.
+
+            Exception:
+                PermissionDenied: Nếu người dùng không có quyền truy cập vào đơn hàng.
+
+    Kế thừa:
+        RetrieveUpdateDestroyAPIView: API truy vấn thông tin chi tiết, cập nhật và xóa
+    """
     permission_classes = (IsAuthenticated,)
     lookup_field = "id"
     queryset = Order.objects.all()
@@ -245,11 +335,49 @@ class OrderDetailAPIView(RetrieveUpdateAPIView):
 
 
 class CreateReviewAPIView(CreateAPIView):
+    """
+    View cho việc tạo đánh giá mới (Review).
+
+    Thuộc tính:
+        serializer_class (ReviewSerializer): Serializer được sử dụng để chuyển đổi dữ liệu đánh giá.
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view  (IsAuthenticated,)
+
+    Kế thừa:
+        CreateAPIView: API tạo đối tượng
+    """
     serializer_class = ReviewSerializer
     permission_classes = (IsAuthenticated,)
 
 
 class ReviewDetailAPIView(RetrieveUpdateDestroyAPIView):
+    """
+    View cho việc hiển thị, cập nhật, xóa chi tiết đánh giá (Review).
+
+    Thuộc tính:
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+        lookup_field (str): Trường dùng để tìm kiếm đánh giá
+        queryset (QuerySet): QuerySet chứa danh sách các đánh giá.
+
+    Phương thức:
+        get_serializer_class():
+            Trả về lớp serializer phù hợp với phương thức request.
+
+            Input: none
+
+            Output:
+                serializer_class: Lớp serializer phù hợp.
+
+        get_object():
+            Trả về đối tượng đơn hàng cần hiển thị hoặc cập nhật.
+            Output:
+                obj: Đối tượng đơn hàng.
+
+            Exception:
+                PermissionDenied: Nếu người dùng không có quyền truy cập vào đơn hàng.
+
+    Kế thừa:
+        RetrieveUpdateDestroyAPIView: API truy vấn thông tin chi tiết, cập nhật và xóa
+    """
     permission_classes = (IsAuthenticated,)
     lookup_field = "id"
     queryset = Order.objects.all()
@@ -268,6 +396,28 @@ class ReviewDetailAPIView(RetrieveUpdateDestroyAPIView):
 
 
 class UserUpdateProfileAPIView(UpdateAPIView):
+    """
+    View cho việc cập nhật thông tin hồ sơ người dùng.
+
+    Thuộc tính:
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+        lookup_field (str): Trường dùng để tìm kiếm người dùng
+        queryset (QuerySet): QuerySet chứa danh sách người dùng.
+        serializer_class (UpdateProfileSerializer): Serializer được sử dụng để chuyển đổi dữ liệu cập nhật hồ sơ người dùng.
+
+    Phương thức:
+        get_object():
+            Trả về đối tượng người dùng cần hiển thị hoặc cập nhật.
+            Output:
+                obj: Đối tượng người dùng.
+
+            Exception:
+                PermissionDenied: Nếu người dùng không có quyền truy cập vào người dùng.
+
+    Kế thừa:
+        UpdateAPIView: API cập đối tượng
+
+    """
     permission_classes = (IsAuthenticated,)
     lookup_field = "id"
     queryset = User.objects.all()
@@ -281,15 +431,49 @@ class UserUpdateProfileAPIView(UpdateAPIView):
 
 
 class CurrentUserAPIView(GenericAPIView):
+    """
+    View cho việc lấy thông tin người dùng hiện tại. Để định danh người dùng, request cần được gửi kèm theo một access token, dưới dạng Bearer token được đính kèm trong header Authorization. Sau khi đã được xác thực thì request sẽ được thêm một trường user
+
+    Thuộc tính:
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+
+    Phương thức:
+        get(request): Lấy thông tin người dùng hiện tại và trả về dữ liệu người dùng trong response.
+
+    Kế thừa:
+        GenericAPIView: API chung, tổng quát nhất
+    """
     permission_classes = (IsAuthenticated,)
 
     def get(self, request):
         user = request.user
         serializer = ViewUserSerializer(user)
-        return response.Response({'user': serializer.data})
+        return response.Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class AdminUpdateUserAPIView(UpdateAPIView):
+    """
+    View cho việc cập nhật thông tin người dùng bởi quản trị viên.
+
+    Attributes:
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+        lookup_field (str): Trường dùng để tìm kiếm người dùng
+        queryset (QuerySet): QuerySet chứa danh sách người dùng.
+        serializer_class (UpdateUserSerializer): Serializer được sử dụng để chuyển đổi dữ liệu cập nhật người dùng.
+
+    Methods:
+        get_object():
+            Trả về đối tượng người dùng cần cập nhật.
+            Output:
+                obj: Đối tượng người dùng.
+
+            Exception:
+                PermissionDenied: Nếu người dùng không có quyền truy cập
+
+    Kế thừa:
+        UpdateAPIView: API cập đối tượng
+
+    """
     permission_classes = (IsAuthenticated,)
     lookup_field = "id"
     queryset = User.objects.all()
@@ -303,6 +487,25 @@ class AdminUpdateUserAPIView(UpdateAPIView):
 
 
 class AddressListView(ListAPIView):
+    """
+    View cho việc lấy danh sách địa chỉ của người dùng.
+
+    Thuộc tính:
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+        serializer_class (AddressSerializer): Serializer được sử dụng để chuyển đổi dữ liệu địa chỉ.
+
+    Phương thức:
+        get_queryset():
+            Trả về QuerySet chứa danh sách địa chỉ của người dùng hiện tại.
+
+            Input: none
+
+            Output:
+                queryset: QuerySet chứa danh sách địa chỉ.
+
+    Kế thừa:
+        ListAPIView: API truy vấn dưới dạng danh sách
+    """
     permission_classes = (IsAuthenticated,)
     serializer_class = AddressSerializer
 
@@ -311,11 +514,43 @@ class AddressListView(ListAPIView):
 
 
 class CreateAddressView(CreateAPIView):
+    """
+    View cho việc tạo địa chỉ mới.
+
+    Thuộc tính:
+        serializer_class (AddressSerializer): Serializer được sử dụng để chuyển đổi dữ liệu địa chỉ.
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+
+    Kế thừa:
+        CreateAPIView: API tạo đối tượng
+
+    """
     serializer_class = AddressSerializer
     permission_classes = (IsAuthenticated,)
 
 
 class AddressDetailAPIView(RetrieveUpdateDestroyAPIView):
+    """
+    View cho việc xem, cập nhật và xóa thông tin một địa chỉ.
+
+    Thuộc tính:
+        serializer_class (AddressSerializer): Serializer được sử dụng để chuyển đổi dữ liệu địa chỉ.
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+        lookup_field (str): Trường dùng để tìm kiếm địa chỉ
+        queryset (QuerySet): QuerySet chứa danh sách địa chỉ.
+
+    Phương thức:
+        get_object():
+            Trả về đối tượng địa chỉ cần hiển thị hoặc cập nhật.
+            Output:
+                obj: Đối tượng địa chỉ.
+
+            Exception:
+                PermissionDenied: Nếu người dùng không có quyền truy cập vào địa chỉ.
+
+    Kế thừa:
+        RetrieveUpdateDestroyAPIView: API truy vấn thông tin chi tiết, cập nhật và xóa
+    """
     serializer_class = AddressSerializer
     permission_classes = (IsAuthenticated,)
     lookup_field = "id"
@@ -329,12 +564,44 @@ class AddressDetailAPIView(RetrieveUpdateDestroyAPIView):
 
 
 class PaymentProviderListView(ListAPIView):
+    """
+    View cho việc lấy danh sách các nhà cung cấp thanh toán.
+
+    Thuộc tính:
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+        serializer_class (PaymentProviderSerializer): Serializer được sử dụng để chuyển đổi dữ liệu nhà cung cấp thanh toán.
+        queryset (QuerySet): QuerySet chứa danh sách các nhà cung cấp thanh toán.
+
+    Kế thừa:
+        ListAPIView: API truy vấn dưới dạng danh sách
+
+    """
     permission_classes = (IsAuthenticated,)
     serializer_class = PaymentProviderSerializer
     queryset = PaymentProvider.objects.all()
 
 
 class PaymentListView(ListAPIView):
+    """
+    View cho việc lấy danh sách phương thức thanh toán của người dùng.
+
+    Thuộc tính:
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+        serializer_class (ViewPaymentSerializer): Serializer được sử dụng để chuyển đổi dữ liệu phương thức thanh toán.
+
+    Phương thức:
+        get_queryset():
+            Trả về QuerySet chứa danh sách phương thức thanh toán của người dùng hiện tại.
+
+            Input: none
+
+            Output:
+                queryset: QuerySet chứa danh sách phương thức thanh toán.
+
+    Kế thừa:
+        ListAPIView: API truy vấn dưới dạng danh sách
+
+    """
     permission_classes = (IsAuthenticated,)
     serializer_class = ViewPaymentSerializer
 
@@ -343,11 +610,43 @@ class PaymentListView(ListAPIView):
 
 
 class CreatePaymentView(CreateAPIView):
+    """
+    View cho việc tạo phương thức thanh toán mới.
+
+    Thuộc tính:
+        serializer_class (PaymentSerializer): Serializer được sử dụng để chuyển đổi dữ liệu phương thức thanh toán.
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (đã được xác thực).
+
+    Kế thừa:
+        CreateAPIView: API tạo đối tượng
+    """
     serializer_class = PaymentSerializer
     permission_classes = (IsAuthenticated,)
 
 
 class PaymentDetailAPIView(RetrieveUpdateDestroyAPIView):
+    """
+    View chi tiết, cập nhật và xóa phương thức thanh toán.
+
+    Thuộc tính:
+        serializer_class (PaymentSerializer): Serializer được sử dụng để chuyển đổi dữ liệu phương thức thanh toán.
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+        lookup_field (str): Trường dùng để tìm kiếm phương thức thanh toán.
+        queryset (QuerySet): QuerySet chứa danh sách các phương thức thanh toán.
+
+    Phương thức:
+        get_object():
+            Trả về đối tượng phương thức thanh toán cần hiển thị hoặc cập nhật.
+            Output:
+                obj: Đối tượng phương thức thanh toán.
+
+            Exception:
+                PermissionDenied: Nếu người dùng không có quyền truy cập vào phương thức thanh toán.
+
+    Kế thừa:
+        RetrieveUpdateDestroyAPIView: API truy vấn thông tin chi tiết, cập nhật và xóa
+
+    """
     serializer_class = PaymentSerializer
     permission_classes = (IsAuthenticated,)
     lookup_field = "id"
@@ -361,6 +660,25 @@ class PaymentDetailAPIView(RetrieveUpdateDestroyAPIView):
 
 
 class CartItemListView(ListAPIView):
+    """
+    View danh sách các mục giỏ hàng.
+
+    Thuộc tính:
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+        serializer_class (ViewCartItemSerializer): Serializer được sử dụng để chuyển đổi dữ liệu mục giỏ hàng.
+
+    Thuộc tính:
+        get_queryset():
+            Trả về QuerySet chứa danh sách giỏ hàng của người dùng hiện tại.
+
+            Input: none
+
+            Output:
+                queryset: QuerySet chứa danh sách giỏ hàng.
+
+    Kế thừa:
+        ListAPIView: API truy vấn dưới dạng danh sách
+    """
     permission_classes = (IsAuthenticated,)
     serializer_class = ViewCartItemSerializer
 
@@ -369,6 +687,30 @@ class CartItemListView(ListAPIView):
 
 
 class AddToCartView(GenericAPIView):
+    """
+    Thêm sản phẩm vào giỏ hàng.
+
+    Attributes:
+        serializer_class (CartItemSerializer): Serializer được sử dụng để chuyển đổi dữ liệu mục giỏ hàng.
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+
+    Methods:
+        post(request):
+            Thêm sản phẩm vào giỏ hàng và trả về kết quả.
+
+            Input:
+                request (Request): Đối tượng request chứa dữ liệu về sản phẩm được thêm vào giỏ hàng.
+
+            Output:
+                Response: Đối tượng response chứa dữ liệu của mục giỏ hàng đã được thêm vào.
+
+            Raises:
+                ValidationError: Nếu số lượng sản phẩm trong kho không đủ (tự động đặt lại số lượng sản phẩm trong giỏ hàng của người dùng) hoặc thông tin không hợp lệ.
+
+    Kế thừa:
+        GenericAPIView: API chung, tổng quát nhất
+
+    """
     serializer_class = CartItemSerializer
     permission_classes = (IsAuthenticated,)
 
@@ -402,6 +744,45 @@ class AddToCartView(GenericAPIView):
 
 
 class MakeOrderFromCartView(GenericAPIView):
+    """
+    Tạo đơn hàng từ giỏ hàng.
+
+    Thuộc tính:
+        serializer_class (OrderSerializer): Serializer được sử dụng để chuyển đổi dữ liệu đơn hàng.
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+
+    Phương thức:
+        update_variation_qty(cart_items):
+            Cập nhật số lượng hàng tồn kho sau khi tạo đơn hàng.
+
+            Input:
+                cart_items (QuerySet): QuerySet chứa các mục giỏ hàng cần được cập nhật.
+
+            Output: none
+
+
+        remove_all_cart_items(cart_items):
+            Xóa tất cả các mục trong giỏ hàng sau khi tạo đơn hàng.
+
+            Input:
+                cart_items (QuerySet): QuerySet chứa các mục giỏ hàng.
+
+
+        post(request):
+            Tạo đơn hàng từ giỏ hàng và trả về kết quả.
+
+            Input:
+                request (Request): Đối tượng request chứa dữ liệu đơn hàng từ giỏ hàng.
+
+            Output:
+                Response: Đối tượng response chứa dữ liệu của đơn hàng đã được tạo.
+
+            Raises:
+                ValidationError: Nếu không có mục nào trong giỏ hàng, hoặc thời điểm đặt không có đủ số lượng tồn kho, hoặc thông tin không hợp lệ.
+
+    Kế thừa:
+        GenericAPIView: API chung, tổng quát nhất
+    """
     serializer_class = OrderSerializer
     permission_classes = (IsAuthenticated,)
 
@@ -452,6 +833,27 @@ class MakeOrderFromCartView(GenericAPIView):
 
 
 class CartItemDetailAPIView(RetrieveDestroyAPIView):
+    """
+    Xem và xóa mục giỏ hàng. Chỉ cho phép thay đổi số lượng hoặc xóa, do đó không đi kèm với cập nhật các mục trong giỏ hàng ở View này
+
+    Thuộc tính:
+        serializer_class (ViewCartItemSerializer): Serializer được sử dụng để chuyển đổi dữ liệu mục giỏ hàng.
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+        lookup_field (str): Trường sử dụng để tìm kiếm mục giỏ hàng.
+        queryset (QuerySet): QuerySet chứa tất cả các mục giỏ hàng.
+
+    Phương thức:
+        get_object():
+            Trả về đối tượng giỏ hàng cần hiển thị hoặc cập nhật.
+            Output:
+                obj: Đối tượng giỏ hàng.
+
+            Exception:
+                PermissionDenied: Nếu người dùng không có quyền truy cập vào giỏ hàng.
+
+    Kế thừa:
+        RetrieveDestroyAPIView: API truy vấn thông tin chi tiết và xóa đối tượng
+    """
     serializer_class = ViewCartItemSerializer
     permission_classes = (IsAuthenticated,)
     lookup_field = "id"
@@ -465,6 +867,36 @@ class CartItemDetailAPIView(RetrieveDestroyAPIView):
 
 
 class ChangeQtyCartItemAPIView(UpdateAPIView):
+    """
+    Thay đổi số lượng mục giỏ hàng.
+
+    Thuộc tính:
+        serializer_class (CartItemSerializer): Serializer được sử dụng để chuyển đổi dữ liệu mục giỏ hàng.
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+        lookup_field (str): Trường sử dụng để tìm kiếm mục giỏ hàng.
+        queryset (QuerySet): QuerySet chứa tất cả các mục giỏ hàng.
+
+    Phương thức:
+        get_object():
+            Trả về đối tượng mục giỏ hàng cần hiển thị hoặc cập nhật.
+            Output:
+                obj: Đối tượng mục giỏ hàng.
+
+            Exception:
+                PermissionDenied: Nếu người dùng không có quyền truy cập vào mục giỏ hàng.
+
+
+        perform_update(serializer):
+            Thực hiện cập nhật số lượng mục giỏ hàng.
+            Input:
+                serializer (CartItemSerializer): Serializer chứa dữ liệu mục giỏ hàng cần cập nhật.
+
+            Raises:
+                serializers.ValidationError: Nếu hành động không hợp lệ hoặc số lượng mục giỏ hàng vượt quá số lượng tồn kho.
+
+    Kế thừa:
+        UpdateAPIView: API cập đối tượng
+    """
     serializer_class = CartItemSerializer
     permission_classes = (IsAuthenticated,)
     lookup_field = "id"
@@ -503,6 +935,26 @@ class ChangeQtyCartItemAPIView(UpdateAPIView):
 
 
 class FavoriteItemListView(ListAPIView):
+    """
+    Xem danh sách các mục yêu thích.
+
+    Thuộc tính:
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+        serializer_class (ViewFavoriteItemSerializer): Serializer được sử dụng để chuyển đổi dữ liệu mục yêu thích.
+
+    Phương thức:
+        get_queryset():
+            Trả về QuerySet chứa danh sách các mục yêu thích của người dùng hiện tại.
+
+            Input: none
+
+            Output:
+                queryset: QuerySet chứa danh sách các mục yêu thích.
+
+
+    Kế thừa:
+        ListAPIView: API truy vấn dưới dạng danh sách
+    """
     permission_classes = (IsAuthenticated,)
     serializer_class = ViewFavoriteItemSerializer
 
@@ -511,6 +963,32 @@ class FavoriteItemListView(ListAPIView):
 
 
 class AddItemToFavoriteView(CreateAPIView):
+    """
+    Thêm mục vào danh sách yêu thích.
+
+    Thuộc tính:
+        serializer_class (FavoriteItemSerializer): Serializer được sử dụng để chuyển đổi dữ liệu mục yêu thích.
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+
+    Phương thức:
+        post(request, *args, **kwargs):
+            Tạo một mục yêu thích mới cho người dùng hiện tại.
+
+            Input:
+                request (Request): Đối tượng request chứa dữ liệu yêu cầu.
+                *args: List các đối số không đặt tên.
+                **kwargs: Dictionary các đối số đặt tên.
+
+            Output:
+                Response: Đối tượng response chứa dữ liệu của item vừa được thêm vào danh sách yêu thích
+
+            Raises:
+                ValidationError: Nếu mục yêu thích đã tồn tại trong danh sách yêu thích của người dùng.
+
+    Kế thừa:
+        CreateAPIView: API tạo đối tượng
+
+    """
     serializer_class = FavoriteItemSerializer
     permission_classes = (IsAuthenticated,)
 
@@ -534,6 +1012,28 @@ class AddItemToFavoriteView(CreateAPIView):
 
 
 class DeleteFavoriteItemView(DestroyAPIView):
+    """
+    Xóa mục khỏi danh sách yêu thích. Không có phương thức cập nhật và xem chi tiết vì không cần thiết.
+
+    Thuộc tính:
+        serializer_class (FavoriteItemSerializer): Serializer được sử dụng để chuyển đổi dữ liệu mục yêu thích.
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
+        queryset (QuerySet): QuerySet chứa tất cả các mục yêu thích.
+        lookup_field (str): Trường dùng để tìm kiếm mục yêu thích.
+
+    Phương thức:
+        get_object():
+            Trả về đối tượng mục yêu thích cần xóa
+            Output:
+                obj: Đối tượng mục yêu thích.
+
+            Exception:
+                PermissionDenied: Nếu người dùng không có quyền truy cập vào mục yêu thích.
+
+    Kế thừa:
+        DestroyAPIView: API xóa đối tượng
+
+    """
     serializer_class = FavoriteItemSerializer
     permission_classes = (IsAuthenticated,)
     queryset = FavoriteItem.objects.all()
@@ -547,27 +1047,82 @@ class DeleteFavoriteItemView(DestroyAPIView):
 
 
 class VoucherView(ListAPIView):
+    """
+    Xem danh sách các phiếu giảm giá.
+
+    Thuộc tính:
+        queryset (QuerySet): QuerySet chứa tất cả các phiếu giảm giá.
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated, IsAdminUser)
+        serializer_class (VoucherSerializer): Serializer được sử dụng để chuyển đổi dữ liệu phiếu giảm giá.
+
+    Kế thừa:
+        ListAPIView: API truy vấn dưới dạng danh sách
+
+    """
     queryset = Voucher.objects.all()
     permission_classes = (IsAuthenticated, IsAdminUser)
     serializer_class = VoucherSerializer
 
 
 class CreateVoucherView(CreateAPIView):
+    """
+    View cho việc tạo voucher mới.
+
+    Thuộc tính:
+        serializer_class (PaymentSerializer): Serializer được sử dụng để chuyển đổi dữ liệu voucher.
+        permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated, IsAdminUser)
+
+    Kế thừa:
+        CreateAPIView: API tạo đối tượng
+
+    """
     serializer_class = VoucherSerializer
     permission_classes = (IsAuthenticated, IsAdminUser)
 
 
-class VoucherDetailAPIView(RetrieveUpdateDestroyAPIView):
+class VoucherDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView):
+    """
+    View cung cấp chức năng để lấy thông tin, cập nhật và xóa một phiếu giảm giá cụ thể.
+
+    Thuộc tính:
+        serializer_class (VoucherSerializer): Serializer sử dụng để chuyển đổi dữ liệu phiếu giảm giá.
+        permission_classes (tuple): Tuple chứa các lớp kiểm tra quyền truy cập được áp dụng cho view này (IsAuthenticated, IsAdminUser).
+        lookup_field (str): Trường dùng để tìm kiếm phiếu giảm giá
+        queryset (QuerySet): QuerySet chứa tất cả các phiếu giảm giá
+
+    Kế thừa:
+        IncludeDeleteMixin: hỗ trợ truy vấn và thực hiện soft delete
+        RetrieveUpdateDestroyAPIView: API truy vấn thông tin chi tiết, cập nhật và xóa
+    """
     serializer_class = VoucherSerializer
     permission_classes = (IsAuthenticated, IsAdminUser)
     lookup_field = "id"
     queryset = Voucher.objects.all()
-
-    def perform_destroy(self, instance):
-        instance.soft_delete()
+    query_model = Voucher
 
 
 class GetVoucherFromCodeView(RetrieveAPIView):
+    """
+    View cung cấp chức năng để lấy thông tin về một phiếu giảm giá dựa trên mã code. View này được sử dụng để người dùng có thể lấy và áp dụng mã giảm giá miễn là họ nhập đúng mã
+
+    Thuộc tính:
+        serializer_class (VoucherSerializer): Serializer sử dụng để chuyển đổi dữ liệu phiếu giảm giá.
+        permission_classes (tuple): Tuple chứa các lớp kiểm tra quyền truy cập được áp dụng cho view này (IsAuthenticated,).
+
+    Phương thức:
+        get_object():
+            Phương thức lấy đối tượng phiếu giảm giá từ mã code được truyền qua query parameters.
+
+            Output:
+                Voucher: Đối tượng phiếu giảm giá tương ứng với mã code.
+
+            Raises:
+                ValidationError: Nếu không tìm thấy phiếu giảm giá với mã code được truyền.
+
+    Kế thừa:
+        RetrieveAPIView: API truy vấn thông tin chi tiết
+
+    """
     serializer_class = VoucherSerializer
     permission_classes = (IsAuthenticated,)
 
@@ -580,7 +1135,31 @@ class GetVoucherFromCodeView(RetrieveAPIView):
 
 
 class FileUploadView(GenericAPIView):
-    def post(self, request, format=None):
+    """
+    Lớp FileUploadView là một generic view cung cấp chức năng tải lên file. File sẽ được tải lên AWS S3 Bucket, sau đó trả về kết quả là url đến file đó (thông qua AWS CloudFront distribution)
+
+    Thuộc tính:
+        permission_classes (tuple): Tuple chứa các lớp kiểm tra quyền truy cập được áp dụng cho view này (IsAuthenticated,).
+
+    Phương thức:
+        post(request):
+            Phương thức xử lý một request POST để tải lên file.
+            Input:
+                request (HttpRequest): Đối tượng HttpRequest chứa từ client.
+
+            Output:
+                Response: Url của file vừa được upload
+
+            Raises:
+                ValidationError: Nếu dữ liệu yêu cầu không hợp lệ.
+
+    Kế thừa:
+        GenericAPIView: API chung, tổng quát nhất
+
+    """
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
         serializer = FileUploadSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -590,6 +1169,51 @@ class FileUploadView(GenericAPIView):
 
 
 class SaleStatisticsAPIView(GenericAPIView):
+    """
+    Lớp SaleStatisticsAPIView là một generic view cung cấp chức năng thống kê doanh số bán hàng.
+
+    Thuộc tính:
+        serializer_class (Serializer): Serializer được sử dụng để chuyển đổi dữ liệu đơn hàng.
+        permission_classes (tuple): Tuple chứa các lớp kiểm tra quyền truy cập được áp dụng cho view này (IsAuthenticated, IsAdminUser).
+
+    Phương thức:
+        get_df_sum(queryset):
+            Trả về một DataFrame và tổng doanh số bán hàng.
+            Input:
+                queryset (QuerySet): Đối tượng QuerySet chứa dữ liệu các đơn hàng.
+
+            Output:
+                DataFrame: Đối tượng DataFrame chứa tổng doanh số theo tháng, và tổng doanh số
+
+        analyze(prev_queryset, queryset):
+            Phân tích và tính toán các chỉ số thống kê từ dữ liệu đơn hàng.
+
+            Input:
+                prev_queryset (QuerySet): Đối tượng QuerySet chứa dữ liệu đơn hàng của giai đoạn trước.
+                queryset (QuerySet): Đối tượng QuerySet chứa dữ liệu đơn hàng của giai đoạn hiện tại.
+
+            Output:
+                dict: Dictionary chứa các chỉ số thống kê, bao gồm tổng doanh số, tổng doanh số theo tháng và tăng trưởng so với giai đoạn trước.
+
+
+        get(request):
+            Xử lý yêu cầu GET để thống kê doanh số bán hàng.
+            Input:
+                request (HttpRequest): Đối tượng HttpRequest chứa từ client.
+
+            Output:
+                Response: Đối tượng Response chứa kết quả thống kê doanh số bán hàng.
+
+            Raises:
+                ValidationError: Nếu định dạng ngày không hợp lệ hoặc khoảng thời gian vượt quá 6 tháng.
+
+    Note:
+        Lớp này sử dụng thư viện pandas.
+
+    Kế thừa:
+        GenericAPIView: API chung, tổng quát nhất
+
+    """
     serializer_class = OrderSerializer
     permission_classes = (IsAuthenticated, IsAdminUser)
 
@@ -642,6 +1266,43 @@ class SaleStatisticsAPIView(GenericAPIView):
 
 
 class TopProductStatisticsAPIView(GenericAPIView):
+    """
+    Lớp TopProductStatisticsAPIView là một generic view cung cấp chức năng thống kê sản phẩm bán chạy nhất theo tuần, tháng, quý hoặc năm.
+
+    Thuộc tính:
+        serializer_class (Serializer): Serializer được sử dụng để chuyển đổi dữ liệu đơn hàng.
+        permission_classes (tuple): Tuple chứa các lớp kiểm tra quyền truy cập được áp dụng cho view này. (IsAuthenticated, IsAdminUser)
+
+    Phương thức:
+        analyze(queryset):
+            Phân tích và tính toán các chỉ số thống kê từ dữ liệu đơn hàng.
+
+            Input:
+                queryset (QuerySet): Đối tượng QuerySet chứa dữ liệu đơn hàng.
+
+            Output:
+                list: Danh sách các sản phẩm bán chạy nhất, được sắp xếp theo doanh thu và số lượng bán giảm dần.
+
+
+        get(request):
+            Xử lý yêu cầu GET để thống kê sản phẩm bán chạy nhất.
+
+            Args:
+                request (HttpRequest): Đối tượng HttpRequest từ client.
+
+            Returns:
+                Response: Đối tượng Response chứa kết quả thống kê sản phẩm bán chạy nhất.
+
+            Raises:
+                ValidationError: Nếu định dạng khoảng thời gian không hợp lệ
+
+
+    Note:
+        - Lớp này sử dụng pandas
+
+    Kế thừa:
+        GenericAPIView: API chung, tổng quát nhất
+    """
     serializer_class = OrderSerializer
     permission_classes = (IsAuthenticated, IsAdminUser)
 
@@ -705,6 +1366,40 @@ class TopProductStatisticsAPIView(GenericAPIView):
 
 
 class TopCategoriesAPIView(GenericAPIView):
+    """
+    Lớp TopCategoriesAPIView là một generic view cung cấp chức năng thống kê danh mục bán chạy nhất. Đồng thời đưa ra chỉ số phần trăm khách hàng mới và khách khác quay lại (returning)
+
+    Thuộc tính:
+        serializer_class (Serializer): Serializer được sử dụng để chuyển đổi dữ liệu đơn hàng.
+        permission_classes (tuple): Tuple chứa các lớp kiểm tra quyền truy cập được áp dụng cho view này (IsAuthenticated, IsAdminUser).
+
+    Phương thức:
+        analyze(queryset):
+            Phân tích và tính toán các chỉ số thống kê từ dữ liệu đơn hàng.
+
+            Input:
+                queryset (QuerySet): Đối tượng QuerySet chứa dữ liệu đơn hàng.
+
+            Output:
+                tuple: Tuple chứa danh sách các danh mục sản phẩm phổ biến nhất, tỷ lệ khách hàng mới và tỷ lệ khách hàng quay lại.
+
+
+        get(request):
+            Xử lý yêu cầu GET để thống kê danh mục sản phẩm phổ biến nhất.
+
+            Input:
+                request (HttpRequest): Đối tượng HttpRequest chứa yêu cầu từ client.
+
+            Output:
+                Response: Đối tượng Response chứa kết quả thống kê danh mục sản phẩm phổ biến nhất.
+
+    Note:
+        - Lớp này sử dụng pandas
+
+    Kế thừa:
+        GenericAPIView: API chung, tổng quát nhất
+    """
+
     serializer_class = ViewOrderSerializer
     permission_classes = (IsAuthenticated, IsAdminUser)
 
