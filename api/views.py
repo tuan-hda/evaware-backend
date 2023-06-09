@@ -690,11 +690,11 @@ class AddToCartView(GenericAPIView):
     """
     Thêm sản phẩm vào giỏ hàng.
 
-    Attributes:
+    Thuộc tính:
         serializer_class (CartItemSerializer): Serializer được sử dụng để chuyển đổi dữ liệu mục giỏ hàng.
         permission_classes (tuple): Danh sách các lớp kiểm tra quyền truy cập cho view (IsAuthenticated,)
 
-    Methods:
+    Phương thức:
         post(request):
             Thêm sản phẩm vào giỏ hàng và trả về kết quả.
 
@@ -995,8 +995,7 @@ class AddItemToFavoriteView(CreateAPIView):
     def post(self, request, *args, **kwargs):
         user = request.user
         product = Product.objects.get(id=request.data['product'])
-        variation = Variation.objects.get(id=request.data['variation'])
-        instance = FavoriteItem.objects.filter(created_by=user, variation=variation, product=product).first()
+        instance = FavoriteItem.objects.filter(created_by=user, product=product).first()
         # Check if favorite item already exists in user's favorite list
         if instance is not None:
             # If true then throw error

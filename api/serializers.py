@@ -160,26 +160,6 @@ class VariationSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class ListProductSerializer(serializers.ModelSerializer):
-    """
-    Serializer cho model Product trong trường hợp xem toàn bộ sản phẩm. Lý do có thêm serializer này là có depth = 1. Nó tự động
-    thực hiện join dữ liệu từ các bảng khóa ngoại.
-
-    Lớp kế thừa: serializers.ModelSerializer
-
-    Meta:
-        model: Product
-        fields: bao gồm tất cả các trường.
-        depth: 1 (tự động join dữ liệu từ các khóa ngoại).
-
-    """
-
-    class Meta:
-        model = Product
-        fields = '__all__'
-        depth = 1
-
-
 class ProductDetailSerializer(serializers.ModelSerializer):
     """
     Serializer cho model Product cho trường hợp xem một sản phẩm. Lý do có thêm serializer này là nó tự động đính kèm
@@ -610,7 +590,6 @@ class ViewPaymentSerializer(serializers.ModelSerializer):
         depth: 1 (tự động join dữ liệu từ các khóa ngoại).
 
     """
-    created_by = UserSerializer()
 
     class Meta:
         model = Payment
@@ -761,6 +740,37 @@ class UsedVoucherSerializer(serializers.ModelSerializer):
     class Meta:
         model = UsedVoucher
         fields = '__all__'
+
+
+class ListProductSerializer(serializers.ModelSerializer):
+    """
+    Serializer cho model Product trong trường hợp xem toàn bộ sản phẩm. Lý do có thêm serializer này là có depth = 1. Nó tự động
+    thực hiện join dữ liệu từ các bảng khóa ngoại.
+
+    Lớp kế thừa: serializers.ModelSerializer
+
+    Meta:
+        model: Product
+        fields: bao gồm tất cả các trường.
+        depth: 1 (tự động join dữ liệu từ các khóa ngoại).
+
+    """
+    is_favorited = serializers.BooleanField(read_only=True, required=False)
+
+    class Meta:
+        model = Product
+        fields = '__all__'
+        depth = 1
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        user = self.context['request'].user
+        favorites = FavoriteItem.objects.filter(product=instance.id, created_by=user.id)
+        if len(favorites) > 0:
+            representation['is_favorited'] = True
+        else:
+            representation['is_favorited'] = False
+        return representation
 
 
 class FileUploadSerializer(serializers.Serializer):

@@ -320,4 +320,3 @@ class FavoriteItem(TrackingModel):
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='favorites',
                                    related_query_name='favorites')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='favorites')
-    variation = models.ForeignKey(Variation, on_delete=models.CASCADE, related_name='favorites')

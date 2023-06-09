@@ -109,6 +109,6 @@ class LoginSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('email', 'password', 'token')
+        fields = ('email', 'password', 'token', 'is_superuser', 'is_staff')
 
-        read_only_fields = ['token']
+        read_only_fields = ['token', 'is_superuser', 'is_staff']
