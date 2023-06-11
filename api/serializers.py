@@ -1,3 +1,4 @@
+from django.db.models import Case, When
 from rest_framework import serializers
 from django.utils import timezone
 from authentication.models import User
@@ -204,7 +205,6 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     """
 
     variations = VariationSerializer(many=True, read_only=True)
-    reviews = ViewReviewSerializer(many=True, read_only=True)
 
     class Meta:
         model = Product
@@ -214,6 +214,16 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         user = self.context["request"].user
+
+        reviews = Review.objects.filter(product_id=representation['id']).order_by(
+            Case(
+                When(created_by=user, then=0),
+                default=1,
+            ),
+            '-created_at'
+        )
+        representation['reviews'] = ViewReviewSerializer(reviews, many=True).data
+
         favorites = FavoriteItem.objects.filter(product=instance.id, created_by=user.id)
         if len(favorites) > 0:
             representation["is_favorited"] = True

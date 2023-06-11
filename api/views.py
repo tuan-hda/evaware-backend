@@ -380,7 +380,7 @@ class ReviewDetailAPIView(RetrieveUpdateDestroyAPIView):
     """
     permission_classes = (IsAuthenticated,)
     lookup_field = "id"
-    queryset = Order.objects.all()
+    queryset = Review.objects.all()
 
     def get_serializer_class(self):
         if self.request.method == 'GET':
