@@ -3,8 +3,21 @@ from django.utils import timezone
 from authentication.models import User
 from evaware_backend.settings import AWS_STORAGE_BUCKET_NAME, AWS_DISTRIBUTION_DOMAIN
 from .config import s3_client
-from .models import Product, Category, Variation, Order, OrderDetail, Review, Address, Payment, PaymentProvider, \
-    CartItem, FavoriteItem, Voucher, UsedVoucher
+from .models import (
+    Product,
+    Category,
+    Variation,
+    Order,
+    OrderDetail,
+    Review,
+    Address,
+    Payment,
+    PaymentProvider,
+    CartItem,
+    FavoriteItem,
+    Voucher,
+    UsedVoucher,
+)
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -21,7 +34,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        exclude = ('password',)
+        exclude = ("password",)
 
 
 class UpdateProfileSerializer(serializers.ModelSerializer):
@@ -41,9 +54,20 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        exclude = ('password',)
-        read_only_fields = ['last_login', 'is_superuser', 'email', 'is_staff', 'is_active', 'date_joined',
-                            'email_verified', 'groups', 'user_permissions', 'created_at', 'updated_at']
+        exclude = ("password",)
+        read_only_fields = [
+            "last_login",
+            "is_superuser",
+            "email",
+            "is_staff",
+            "is_active",
+            "date_joined",
+            "email_verified",
+            "groups",
+            "user_permissions",
+            "created_at",
+            "updated_at",
+        ]
 
 
 class UpdateUserSerializer(serializers.ModelSerializer):
@@ -62,8 +86,8 @@ class UpdateUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        exclude = ('password',)
-        read_only_fields = ['phone', 'email', 'dob', 'full_name', 'gender', 'avatar']
+        exclude = ("password",)
+        read_only_fields = ["phone", "email", "dob", "full_name", "gender", "avatar"]
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -80,7 +104,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Category
-        fields = '__all__'
+        fields = "__all__"
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -98,8 +122,8 @@ class ReviewSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Review
-        fields = '__all__'
-        read_only_fields = ['created_by']
+        fields = "__all__"
+        read_only_fields = ["created_by"]
 
     def create(self, validated_data):
         """
@@ -115,7 +139,7 @@ class ReviewSerializer(serializers.ModelSerializer):
 
         """
 
-        validated_data['created_by'] = self.context['request'].user
+        validated_data["created_by"] = self.context["request"].user
         return super(ReviewSerializer, self).create(validated_data)
 
 
@@ -135,11 +159,12 @@ class ViewReviewSerializer(serializers.ModelSerializer):
         depth: 1 (tự động join dữ liệu từ các khóa ngoại).
 
     """
+
     created_by = UserSerializer()
 
     class Meta:
         model = Review
-        fields = '__all__'
+        fields = "__all__"
         depth = 1
 
 
@@ -157,7 +182,7 @@ class VariationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Variation
-        fields = '__all__'
+        fields = "__all__"
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
@@ -177,13 +202,24 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         depth: 1 (tự động join dữ liệu từ các khóa ngoại).
 
     """
+
     variations = VariationSerializer(many=True, read_only=True)
     reviews = ViewReviewSerializer(many=True, read_only=True)
 
     class Meta:
         model = Product
-        fields = '__all__'
+        fields = "__all__"
         depth = 1
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        user = self.context["request"].user
+        favorites = FavoriteItem.objects.filter(product=instance.id, created_by=user.id)
+        if len(favorites) > 0:
+            representation["is_favorited"] = True
+        else:
+            representation["is_favorited"] = False
+        return representation
 
 
 class CreateProductSerializer(serializers.ModelSerializer):
@@ -200,7 +236,7 @@ class CreateProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = '__all__'
+        fields = "__all__"
 
 
 class OrderDetailSerializer(serializers.ModelSerializer):
@@ -217,7 +253,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderDetail
-        exclude = ('order',)
+        exclude = ("order",)
 
 
 class ViewOrderDetailSerializer(serializers.ModelSerializer):
@@ -242,7 +278,7 @@ class ViewOrderDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderDetail
-        fields = '__all__'
+        fields = "__all__"
 
 
 class ViewOrderSerializer(serializers.ModelSerializer):
@@ -268,7 +304,7 @@ class ViewOrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = '__all__'
+        fields = "__all__"
         depth = 1
 
 
@@ -292,7 +328,7 @@ class ViewOrderSerializerWithoutCreatedBy(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = '__all__'
+        fields = "__all__"
 
 
 class VoucherSerializer(serializers.ModelSerializer):
@@ -309,7 +345,7 @@ class VoucherSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Voucher
-        fields = '__all__'
+        fields = "__all__"
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -335,14 +371,17 @@ class OrderSerializer(serializers.ModelSerializer):
         depth: 1 (tự động join dữ liệu từ các khóa ngoại).
 
     """
+
     order_details = OrderDetailSerializer(many=True)
-    voucher = serializers.PrimaryKeyRelatedField(queryset=Voucher.objects.all(), allow_null=True, required=False)
+    voucher = serializers.PrimaryKeyRelatedField(
+        queryset=Voucher.objects.all(), allow_null=True, required=False
+    )
     voucher_code = serializers.CharField(max_length=30, required=False)
 
     class Meta:
         model = Order
-        fields = '__all__'
-        read_only_fields = ('created_by',)
+        fields = "__all__"
+        read_only_fields = ("created_by",)
         depth = 1
 
     def reverse_inventory(self, instance):
@@ -379,20 +418,25 @@ class OrderSerializer(serializers.ModelSerializer):
 
         """
 
-        user = self.context['request'].user
-        status = validated_data.get('status')
+        user = self.context["request"].user
+        status = validated_data.get("status")
         if not status:
             return
-        if status not in ['In progress', 'Delivering', 'Cancelled', 'Success']:
+        if status not in ["In progress", "Delivering", "Cancelled", "Success"]:
             raise serializers.ValidationError(
-                "Invalid status type. Must be one of ['In progress', 'Delivering', 'Cancelled', 'Success']")
-        if instance.status != status and status != 'Cancelled' and not user.is_staff:
-            raise serializers.ValidationError('You do not have permissions to perform this action.')
+                "Invalid status type. Must be one of ['In progress', 'Delivering', 'Cancelled', 'Success']"
+            )
+        if instance.status != status and status != "Cancelled" and not user.is_staff:
+            raise serializers.ValidationError(
+                "You do not have permissions to perform this action."
+            )
 
-        if instance.status != status and status == 'Cancelled':
+        if instance.status != status and status == "Cancelled":
             # Check voucher
             if instance.voucher:
-                used_voucher = UsedVoucher.objects.filter(voucher=instance.voucher, user=user).first()
+                used_voucher = UsedVoucher.objects.filter(
+                    voucher=instance.voucher, user=user
+                ).first()
                 if used_voucher:
                     used_voucher.delete()
 
@@ -428,20 +472,22 @@ class OrderSerializer(serializers.ModelSerializer):
             serializers.ValidationError: Nếu mã voucher không hợp lệ, voucher đã hết hạn hoặc khách hàng đã sử dụng voucher.
 
         """
-        voucher = validated_data.get('voucher')
-        voucher_code = validated_data.get('voucher_code')
+        voucher = validated_data.get("voucher")
+        voucher_code = validated_data.get("voucher_code")
         if voucher is not None:
             if voucher.code != voucher_code:
                 print(voucher.code, voucher_code)
-                raise serializers.ValidationError('Voucher is invalid')
+                raise serializers.ValidationError("Voucher is invalid")
 
             current_time = timezone.now().date()
             if voucher.from_date > current_time or voucher.to_date < current_time:
-                raise serializers.ValidationError('Voucher is expired')
+                raise serializers.ValidationError("Voucher is expired")
 
-            used_voucher = UsedVoucher.objects.filter(user=validated_data['created_by'], voucher=voucher).first()
+            used_voucher = UsedVoucher.objects.filter(
+                user=validated_data["created_by"], voucher=voucher
+            ).first()
             if used_voucher:
-                raise serializers.ValidationError('User already used this voucher')
+                raise serializers.ValidationError("User already used this voucher")
 
             return voucher
         return None
@@ -463,21 +509,21 @@ class OrderSerializer(serializers.ModelSerializer):
             Order: Đối tượng đơn hàng đã được tạo mới.
 
         """
-        validated_data['created_by'] = self.context['request'].user
+        validated_data["created_by"] = self.context["request"].user
         voucher = self.check_voucher(validated_data)
 
         if voucher is not None:
-            total = validated_data['total']
+            total = validated_data["total"]
             total = int(total * (1 - voucher.discount / 100.0))
-            validated_data['total'] = total
-            validated_data.pop('voucher_code')
-            validated_data.pop('voucher')
-        sub_data = validated_data.pop('order_details', [])
+            validated_data["total"] = total
+            validated_data.pop("voucher_code")
+            validated_data.pop("voucher")
+        sub_data = validated_data.pop("order_details", [])
         order = Order.objects.create(voucher=voucher, **validated_data)
         for data in sub_data:
             OrderDetail.objects.create(order=order, **data)
 
-        UsedVoucher.objects.create(voucher=voucher, user=validated_data['created_by'])
+        UsedVoucher.objects.create(voucher=voucher, user=validated_data["created_by"])
         return order
 
 
@@ -503,7 +549,7 @@ class ViewReviewSerializerWithoutCreatedBy(serializers.ModelSerializer):
 
     class Meta:
         model = Review
-        fields = '__all__'
+        fields = "__all__"
 
 
 class ViewUserSerializer(serializers.ModelSerializer):
@@ -523,12 +569,13 @@ class ViewUserSerializer(serializers.ModelSerializer):
         exclude: loại bỏ trường password.
 
     """
+
     reviews = ViewReviewSerializerWithoutCreatedBy(many=True)
     orders = ViewOrderSerializerWithoutCreatedBy(many=True)
 
     class Meta:
         model = User
-        exclude = ('password',)
+        exclude = ("password",)
 
 
 class AddressSerializer(serializers.ModelSerializer):
@@ -544,8 +591,8 @@ class AddressSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Address
-        fields = '__all__'
-        read_only_fields = ('created_by',)
+        fields = "__all__"
+        read_only_fields = ("created_by",)
 
     def create(self, validated_data):
         """
@@ -559,7 +606,7 @@ class AddressSerializer(serializers.ModelSerializer):
         Output:
             Payment: Đối tượng Payment đã được tạo.
         """
-        validated_data['created_by'] = self.context['request'].user
+        validated_data["created_by"] = self.context["request"].user
         return super().create(validated_data)
 
 
@@ -574,7 +621,7 @@ class PaymentProviderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PaymentProvider
-        fields = '__all__'
+        fields = "__all__"
 
 
 class ViewPaymentSerializer(serializers.ModelSerializer):
@@ -593,7 +640,7 @@ class ViewPaymentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Payment
-        exclude = ('created_by',)
+        exclude = ("created_by",)
         depth = 1
 
 
@@ -621,11 +668,11 @@ class PaymentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Payment
-        fields = '__all__'
-        read_only_fields = ('created_by',)
+        fields = "__all__"
+        read_only_fields = ("created_by",)
 
     def create(self, validated_data):
-        validated_data['created_by'] = self.context['request'].user
+        validated_data["created_by"] = self.context["request"].user
         return super().create(validated_data)
 
 
@@ -654,12 +701,25 @@ class CartItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CartItem
-        fields = '__all__'
-        read_only_fields = ['created_by', ]
+        fields = "__all__"
+        read_only_fields = [
+            "created_by",
+        ]
 
     def create(self, validated_data):
-        validated_data['created_by'] = self.context['request'].user
+        validated_data["created_by"] = self.context["request"].user
         return super().create(validated_data)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation["variation"] = VariationSerializer(
+            Variation.objects.get(id=instance.variation.pk)
+        ).data
+        representation["product"] = ListProductSerializer(
+            Product.objects.get(id=instance.product.pk),
+            context={"request": self.context["request"]},
+        ).data
+        return representation
 
 
 class ViewCartItemSerializer(serializers.ModelSerializer):
@@ -675,7 +735,7 @@ class ViewCartItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CartItem
-        exclude = ('created_by',)
+        exclude = ("created_by",)
         depth = 1
 
 
@@ -702,11 +762,13 @@ class FavoriteItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FavoriteItem
-        fields = '__all__'
-        read_only_fields = ['created_by', ]
+        fields = "__all__"
+        read_only_fields = [
+            "created_by",
+        ]
 
     def create(self, validated_data):
-        validated_data['created_by'] = self.context['request'].user
+        validated_data["created_by"] = self.context["request"].user
         return super().create(validated_data)
 
 
@@ -723,7 +785,7 @@ class ViewFavoriteItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FavoriteItem
-        exclude = ('created_by',)
+        exclude = ("created_by",)
         depth = 1
 
 
@@ -739,7 +801,7 @@ class UsedVoucherSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UsedVoucher
-        fields = '__all__'
+        fields = "__all__"
 
 
 class ListProductSerializer(serializers.ModelSerializer):
@@ -755,21 +817,22 @@ class ListProductSerializer(serializers.ModelSerializer):
         depth: 1 (tự động join dữ liệu từ các khóa ngoại).
 
     """
+
     is_favorited = serializers.BooleanField(read_only=True, required=False)
 
     class Meta:
         model = Product
-        fields = '__all__'
+        fields = "__all__"
         depth = 1
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        user = self.context['request'].user
+        user = self.context["request"].user
         favorites = FavoriteItem.objects.filter(product=instance.id, created_by=user.id)
         if len(favorites) > 0:
-            representation['is_favorited'] = True
+            representation["is_favorited"] = True
         else:
-            representation['is_favorited'] = False
+            representation["is_favorited"] = False
         return representation
 
 
@@ -799,11 +862,17 @@ class FileUploadSerializer(serializers.Serializer):
     file = serializers.FileField(write_only=True)
 
     def create(self, validated_data):
-        file = validated_data['file']
-        time_str = str(timezone.now()).replace("-", "").replace(" ", "").replace(":", "").replace(".", "").replace("+",
-                                                                                                                   "")
-        file_path = f"uploads/{time_str}{file.name}"
+        file = validated_data["file"]
+        time_str = (
+            str(timezone.now())
+            .replace("-", "")
+            .replace(" ", "")
+            .replace(":", "")
+            .replace(".", "")
+            .replace("+", "")
+        )
+        file_path = f"uploads/{time_str}"
         s3_client.put_object(Key=file_path, Body=file, Bucket=AWS_STORAGE_BUCKET_NAME)
-        url = 'https://' + AWS_DISTRIBUTION_DOMAIN + '/' + file_path
+        url = "https://" + AWS_DISTRIBUTION_DOMAIN + "/" + file_path
 
-        return {'url': url}
+        return {"url": url}

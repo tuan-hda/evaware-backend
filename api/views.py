@@ -1010,7 +1010,7 @@ class AddItemToFavoriteView(CreateAPIView):
         return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class DeleteFavoriteItemView(DestroyAPIView):
+class DeleteFavoriteItemView(GenericAPIView):
     """
     Xóa mục khỏi danh sách yêu thích. Không có phương thức cập nhật và xem chi tiết vì không cần thiết.
 
@@ -1040,9 +1040,16 @@ class DeleteFavoriteItemView(DestroyAPIView):
 
     def get_object(self):
         obj = super().get_object()
-        if obj.created_by != self.request.user:
-            raise PermissionDenied("You do not have permission to access this.")
-        return obj
+
+    def delete(self, request, id, format=None):
+        product = Product.objects.get(id=id)
+        favorite = FavoriteItem.objects.filter(created_by=request.user, product=product)
+        if not favorite:
+            raise PermissionDenied("You do not have permission to access this or you haven't like yet")
+
+        favorite.delete()
+
+        return Response({'message': 'Favorite item deleted successfully'})
 
 
 class VoucherView(ListAPIView):
