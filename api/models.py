@@ -57,6 +57,12 @@ class Product(TrackingModel, SoftDeleteModel):
     reviews_count = models.IntegerField(default=0)
     avg_rating = models.FloatField(default=0)
     variations_count = models.IntegerField(default=0)
+    material = models.TextField(default='', blank=True, null=True)
+    width = models.DecimalField(default=0, blank=True, null=True, decimal_places=2, max_digits=20)
+    height = models.DecimalField(default=0, blank=True, null=True, decimal_places=2, max_digits=20)
+    depth = models.DecimalField(default=0, blank=True, null=True, decimal_places=2, max_digits=20)
+    weight = models.DecimalField(default=0, blank=True, null=True, decimal_places=2, max_digits=20)
+    more_info = models.TextField(default='', blank=True, null=True)
 
 
 class Variation(TrackingModel, SoftDeleteModel):
@@ -101,6 +107,7 @@ class Voucher(TrackingModel, SoftDeleteModel):
     code = models.CharField(max_length=30, unique=True, error_messages={
         'unique': _("A voucher with that code already exists."),
     })
+    inventory = models.IntegerField(default=0)
     discount = models.IntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
     from_date = models.DateField()
     to_date = models.DateField()

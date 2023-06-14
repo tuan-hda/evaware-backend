@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+from django.db.models import Max, Min
 from django.utils import timezone
 from django.utils.timezone import make_aware
 from django_filters.rest_framework import DjangoFilterBackend
@@ -49,9 +50,20 @@ class ProductView(IncludeDeleteMixin, ListAPIView):
     pagination_class = CustomPageNumberPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
 
-    filterset_fields = ['id', 'name', 'desc', 'price', 'avg_rating', 'variation__name', 'reviews_count',
-                        'category__name', 'category__id']
-    search_fields = ['id', 'name', 'desc', 'price', 'avg_rating', 'variation__name', 'reviews_count', 'category__name']
+    # filterset_fields = ['id', 'name', 'desc', 'price', 'avg_rating', 'variation__name',
+    #                     'reviews_count', 'category__name', 'category__id', 'width', 'height', 'depth', 'weight',
+    #                     'material']
+    filterset_fields = {
+        'id': ['exact'],
+        'name': ['exact'], 'desc': ['exact'], 'price': ['exact', 'gte', 'lte'], 'avg_rating': ['exact'],
+        'variation__name': ['exact'],
+        'reviews_count': ['exact'], 'category__name': ['exact'], 'category__id': ['exact'], 'width': ['exact'],
+        'height': ['exact'], 'depth': ['exact'], 'weight': ['exact'],
+        'material': ['exact'],
+    }
+
+    search_fields = ['id', 'name', 'desc', 'price', 'avg_rating', 'variation__name', 'reviews_count',
+                     'category__name']
     ordering_fields = ['id', 'name', 'desc', 'price', 'avg_rating', 'variation__name', 'reviews_count',
                        'category__name', 'category__id']
 
@@ -1315,10 +1327,12 @@ class TopProductStatisticsAPIView(GenericAPIView):
         GenericAPIView: API chung, tổng quát nhất
     """
     serializer_class = OrderSerializer
-    permission_classes = (IsAuthenticated, IsAdminUser)
+    permission_classes = (IsAuthenticated,)
 
     def analyze(self, queryset):
         serializer = self.serializer_class(queryset, many=True)
+        if len(queryset) == 0:
+            return
         pd.set_option('display.max_columns', None)
         pd.set_option('display.max_rows', None)
         df = pd.DataFrame(serializer.data)
@@ -1331,25 +1345,29 @@ class TopProductStatisticsAPIView(GenericAPIView):
             for order_detail in order:
                 product_id = order_detail['product']
                 qty = order_detail['qty']
-                price = order_detail['price']
+                price = float(order_detail['price'])
                 total = qty * price
                 if product_id in top_products:
                     sales = top_products[product_id].get('sales')
                     revenue = top_products[product_id].get('revenue')
                     top_products[product_id] = {
                         'sales': sales + qty,
-                        'revenue': revenue + total
+                        'revenue': float(revenue) + total
                     }
                 else:
                     top_products[product_id] = {
                         'sales': qty,
-                        'revenue': + total
+                        'revenue': float(total)
                     }
 
         top_products_df = pd.DataFrame.from_dict(top_products, orient='index')
         top_products_df = top_products_df.sort_values(by=['revenue', 'sales'], ascending=[False, False])
-        return top_products_df.reset_index().rename(columns={'index': 'product'}).to_dict(orient='records')
-
+        res = top_products_df.reset_index().rename(columns={'index': 'product'}).to_dict(orient='records')
+        for item in res:
+            item['product'] = ListProductSerializer(instance=Product.objects.get(id=item['product']),
+                                                    context={'request': self.request}).data
+        return res
+    
     def get(self, request):
         range_type = request.query_params.get('range_type')
         if not range_type:
@@ -1373,7 +1391,11 @@ class TopProductStatisticsAPIView(GenericAPIView):
             queryset = Order.objects.filter(status='Success', created_at__month__gte=from_month,
                                             created_at__lte=current_time)
 
-        return response.Response(self.analyze(queryset), status=status.HTTP_200_OK)
+        res = self.analyze(queryset)
+        if res:
+            return response.Response(self.analyze(queryset), status=status.HTTP_200_OK)
+        else:
+            return response.Response({'Message': 'No data'}, status=status.HTTP_200_OK)
 
 
 class TopCategoriesAPIView(GenericAPIView):
@@ -1449,4 +1471,37 @@ class TopCategoriesAPIView(GenericAPIView):
             'data': data,
             'new_buyers_percent': new_buyers_percent,
             'returning_percent': returning_percent
+        }, status=status.HTTP_200_OK)
+
+
+class GetProductFilter(IncludeDeleteMixin, GenericAPIView):
+    query_model = Product
+
+    def get(self, request):
+        result = Product.objects.aggregate(max_price=Max('price'), min_price=Min('price'))
+        width = self.get_queryset().order_by('width').values_list('width', flat=True).distinct('width')
+        height = self.get_queryset().order_by('height').values_list('height', flat=True).distinct('height')
+        depth = self.get_queryset().order_by('depth').values_list('depth', flat=True).distinct('depth')
+        weight = self.get_queryset().order_by('weight').values_list('weight', flat=True).distinct('weight')
+        material = self.get_queryset().order_by('material').values_list('material', flat=True).distinct('material')
+        variations = []
+
+        include_delete = self.request.query_params.get('include_delete')
+        if include_delete:
+            variations = Variation.objects.all()
+        else:
+            variations = Variation.undeleted_objects.all()
+
+        variations = variations.filter(product__in=self.get_queryset()).order_by('name').values_list(
+            'name', flat=True).distinct('name')
+
+        return Response({
+            'max_price': result['max_price'],
+            'min_price': result['min_price'],
+            'width': list(width),
+            'height': list(height),
+            'depth': list(depth),
+            'weight': list(weight),
+            'material': list(material),
+            'variation': list(variations)
         }, status=status.HTTP_200_OK)

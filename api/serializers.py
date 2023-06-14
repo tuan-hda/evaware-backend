@@ -343,22 +343,22 @@ class ViewOrderSerializer(serializers.ModelSerializer):
         fields = "__all__"
         depth = 1
 
-    def to_representation(self, instance):
-        # Retrieve the sorted data based on your sorting criteria
-        sorted_data = YourModel.objects.filter(...).order_by('-created_at')
-
-        # Convert the sorted data to a representation format
-        representation = []
-        for item in sorted_data:
-            # Convert each item to its representation format
-            item_representation = {
-                'field1': item.field1,
-                'field2': item.field2,
-                # Other fields...
-            }
-            representation.append(item_representation)
-
-        return representation
+    # def to_representation(self, instance):
+    #     # Retrieve the sorted data based on your sorting criteria
+    #     sorted_data = YourModel.objects.filter(...).order_by('-created_at')
+    #
+    #     # Convert the sorted data to a representation format
+    #     representation = []
+    #     for item in sorted_data:
+    #         # Convert each item to its representation format
+    #         item_representation = {
+    #             'field1': item.field1,
+    #             'field2': item.field2,
+    #             # Other fields...
+    #         }
+    #         representation.append(item_representation)
+    #
+    #     return representation
 
 
 class VoucherSerializer(serializers.ModelSerializer):
@@ -570,7 +570,7 @@ class OrderSerializer(serializers.ModelSerializer):
         if voucher is not None:
             validated_data.pop("voucher_code")
             validated_data.pop("voucher")
-            
+
         sub_data = validated_data.pop("order_details", [])
         order = Order.objects.create(voucher=voucher, **validated_data)
         for data in sub_data:

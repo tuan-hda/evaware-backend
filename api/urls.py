@@ -7,7 +7,7 @@ from .views import ProductView, CreateProductView, ProductDetailAPIView, Categor
     PaymentListView, CreatePaymentView, PaymentDetailAPIView, CartItemListView, AddToCartView, CartItemDetailAPIView, \
     ChangeQtyCartItemAPIView, FavoriteItemListView, AddItemToFavoriteView, DeleteFavoriteItemView, \
     MakeOrderFromCartView, CreateVoucherView, VoucherView, VoucherDetailAPIView, GetVoucherFromCodeView, FileUploadView, \
-    SaleStatisticsAPIView, TopProductStatisticsAPIView, TopCategoriesAPIView
+    SaleStatisticsAPIView, TopProductStatisticsAPIView, TopCategoriesAPIView, GetProductFilter
 
 urlpatterns = [
     path('product/', ProductView.as_view(), name='get-all-products'),
@@ -50,4 +50,5 @@ urlpatterns = [
     path('statistics/sales', SaleStatisticsAPIView.as_view(), name='statistics-sale'),
     path('statistics/top-product', TopProductStatisticsAPIView.as_view(), name='statistics-top-product'),
     path('statistics/top-categories', TopCategoriesAPIView.as_view(), name='statistics-top-product'),
+    path('filter/get-filters', GetProductFilter.as_view(), name='get-filters'),
 ]
