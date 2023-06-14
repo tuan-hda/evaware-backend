@@ -186,6 +186,32 @@ class VariationSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class ProductDetailAltSerializer(serializers.ModelSerializer):
+    """
+    Serializer cho model Product cho trường hợp xem một sản phẩm. Lý do có thêm serializer này là nó tự động đính kèm
+    toàn bộ biến thể cũng như đánh giá trong sản phẩm này.
+
+    Lớp kế thừa: serializers.ModelSerializer
+
+    Thuộc tính:
+        variations (VariationSerializer): Serializer cho danh sách các biến thể có khóa ngoại tham chiếu tới sản phẩm này.
+        reviews (ReviewSerializer): Serializer cho danh sách các đánh giá có khóa ngoại tham chiếu tới sản phẩm này.
+
+    Meta
+        model: Product
+        fields: bao gồm tất cả các trường.
+        depth: 1 (tự động join dữ liệu từ các khóa ngoại).
+
+    """
+
+    variations = VariationSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Product
+        fields = "__all__"
+        depth = 1
+
+
 class ProductDetailSerializer(serializers.ModelSerializer):
     """
     Serializer cho model Product cho trường hợp xem một sản phẩm. Lý do có thêm serializer này là nó tự động đính kèm
@@ -284,7 +310,7 @@ class ViewOrderDetailSerializer(serializers.ModelSerializer):
     """
 
     variation = VariationSerializer()
-    product = CreateProductSerializer()
+    product = ProductDetailAltSerializer()
 
     class Meta:
         model = OrderDetail
@@ -317,6 +343,40 @@ class ViewOrderSerializer(serializers.ModelSerializer):
         fields = "__all__"
         depth = 1
 
+    def to_representation(self, instance):
+        # Retrieve the sorted data based on your sorting criteria
+        sorted_data = YourModel.objects.filter(...).order_by('-created_at')
+
+        # Convert the sorted data to a representation format
+        representation = []
+        for item in sorted_data:
+            # Convert each item to its representation format
+            item_representation = {
+                'field1': item.field1,
+                'field2': item.field2,
+                # Other fields...
+            }
+            representation.append(item_representation)
+
+        return representation
+
+
+class VoucherSerializer(serializers.ModelSerializer):
+    """
+    Serializer cho model Voucher.
+
+    Lớp kế thừa: serializers.ModelSerializer
+
+    Meta
+        model: Voucher
+        fields: bao gồm tất cả các trường.
+
+    """
+
+    class Meta:
+        model = Voucher
+        fields = "__all__"
+
 
 class ViewOrderSerializerWithoutCreatedBy(serializers.ModelSerializer):
     """
@@ -335,26 +395,10 @@ class ViewOrderSerializerWithoutCreatedBy(serializers.ModelSerializer):
     """
 
     order_details = ViewOrderDetailSerializer(many=True)
+    voucher = VoucherSerializer(required=False)
 
     class Meta:
         model = Order
-        fields = "__all__"
-
-
-class VoucherSerializer(serializers.ModelSerializer):
-    """
-    Serializer cho model Voucher.
-
-    Lớp kế thừa: serializers.ModelSerializer
-
-    Meta
-        model: Voucher
-        fields: bao gồm tất cả các trường.
-
-    """
-
-    class Meta:
-        model = Voucher
         fields = "__all__"
 
 
@@ -484,6 +528,7 @@ class OrderSerializer(serializers.ModelSerializer):
         """
         voucher = validated_data.get("voucher")
         voucher_code = validated_data.get("voucher_code")
+
         if voucher is not None:
             if voucher.code != voucher_code:
                 print(voucher.code, voucher_code)
@@ -523,17 +568,16 @@ class OrderSerializer(serializers.ModelSerializer):
         voucher = self.check_voucher(validated_data)
 
         if voucher is not None:
-            total = validated_data["total"]
-            total = int(total * (1 - voucher.discount / 100.0))
-            validated_data["total"] = total
             validated_data.pop("voucher_code")
             validated_data.pop("voucher")
+            
         sub_data = validated_data.pop("order_details", [])
         order = Order.objects.create(voucher=voucher, **validated_data)
         for data in sub_data:
             OrderDetail.objects.create(order=order, **data)
 
-        UsedVoucher.objects.create(voucher=voucher, user=validated_data["created_by"])
+        if voucher is not None:
+            UsedVoucher.objects.create(voucher=voucher, user=validated_data["created_by"])
         return order
 
 
@@ -586,6 +630,11 @@ class ViewUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         exclude = ("password",)
+
+    def to_representation(self, instance):
+        response = super().to_representation(instance)
+        response["orders"] = sorted(response["orders"], key=lambda x: x['created_at'], reverse=True)
+        return response
 
 
 class AddressSerializer(serializers.ModelSerializer):
@@ -792,6 +841,7 @@ class ViewFavoriteItemSerializer(serializers.ModelSerializer):
         depth: 1 (tự động join dữ liệu từ các khóa ngoại).
 
     """
+    product = ProductDetailSerializer()
 
     class Meta:
         model = FavoriteItem

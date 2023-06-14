@@ -51,7 +51,7 @@ class Product(TrackingModel, SoftDeleteModel):
     name = models.CharField(max_length=300, default="")
     desc = models.TextField(default="", null=True, blank=True)
     discount = models.IntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
-    price = models.IntegerField(default=0)
+    price = models.DecimalField(default=0, decimal_places=2, max_digits=20)
     thumbnail = models.TextField(default='')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, )
     reviews_count = models.IntegerField(default=0)
@@ -150,7 +150,7 @@ class Order(TrackingModel):
     ward_code = models.IntegerField()
     street = models.CharField(max_length=300)
     status = models.CharField(max_length=20, default='In progress')
-    total = models.IntegerField()
+    total = models.DecimalField(default=0, decimal_places=2, max_digits=20)
     payment = models.TextField(default='COD')
     shipping_date = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders', related_query_name='order')
@@ -176,7 +176,7 @@ class OrderDetail(TrackingModel):
 
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='order_details')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='order_details')
-    price = models.IntegerField(default=0)
+    price = models.DecimalField(default=0, decimal_places=2, max_digits=20)
     qty = models.IntegerField(default=0)
     variation = models.ForeignKey(Variation, on_delete=models.CASCADE)
 
@@ -275,10 +275,12 @@ class Payment(TrackingModel):
     """
     provider = models.ForeignKey(PaymentProvider, on_delete=models.CASCADE, related_name='payments',
                                  related_query_name='payment')
+    number = models.CharField(max_length=30, default='', null=True, blank=True)
     name = models.CharField(max_length=300, default='')
     exp = models.DateField(max_length=50, default=None, blank=True, null=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payments',
                                    related_query_name='payment')
+    cvc = models.CharField(max_length=4, default='', null=True, blank=True)
 
 
 class CartItem(TrackingModel):

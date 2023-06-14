@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+from django.utils import timezone
 from django.utils.timezone import make_aware
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, status, filters, response, serializers
@@ -821,7 +822,6 @@ class MakeOrderFromCartView(GenericAPIView):
                     'qty': cart_item.qty
                 }
             )
-        request.data['total'] = total
         serializer = self.serializer_class(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
@@ -903,6 +903,7 @@ class ChangeQtyCartItemAPIView(UpdateAPIView):
     queryset = CartItem.objects.all()
 
     def get_object(self):
+        print("HELLO WORLD")
         obj = super().get_object()
         if obj.created_by != self.request.user:
             raise PermissionDenied("You do not have permission to access this.")
@@ -1043,9 +1044,10 @@ class DeleteFavoriteItemView(GenericAPIView):
 
     def delete(self, request, id, format=None):
         product = Product.objects.get(id=id)
-        favorite = FavoriteItem.objects.filter(created_by=request.user, product=product)
+        favorite = FavoriteItem.objects.filter(created_by__id=request.user.id, product=product)
         if not favorite:
-            raise PermissionDenied("You do not have permission to access this or you haven't like yet")
+            raise PermissionDenied(
+                "You do not have permission to access this or you haven't like yet or wrong product id")
 
         favorite.delete()
 
@@ -1135,8 +1137,11 @@ class GetVoucherFromCodeView(RetrieveAPIView):
     def get_object(self):
         code = self.request.query_params.get('code')
         instance = Voucher.objects.filter(code=code).first()
+        current_time = timezone.now().date()
+        if instance.from_date > current_time or instance.to_date < current_time:
+            raise serializers.ValidationError("Voucher is expired")
         if instance is None:
-            raise serializers.ValidationError(f'No voucher {code} found')
+            raise serializers.ValidationError(f'No voucher found')
         return instance
 
 
