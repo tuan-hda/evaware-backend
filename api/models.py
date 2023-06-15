@@ -55,7 +55,7 @@ class Product(TrackingModel, SoftDeleteModel):
     thumbnail = models.TextField(default='')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, )
     reviews_count = models.IntegerField(default=0)
-    avg_rating = models.FloatField(default=0)
+    avg_rating = models.DecimalField(default=0, blank=True, null=True, decimal_places=1, max_digits=20)
     variations_count = models.IntegerField(default=0)
     material = models.TextField(default='', blank=True, null=True)
     width = models.DecimalField(default=0, blank=True, null=True, decimal_places=2, max_digits=20)

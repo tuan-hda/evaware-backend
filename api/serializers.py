@@ -292,6 +292,31 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         exclude = ("order",)
 
 
+class ViewOrderDetailAltSerializer(serializers.ModelSerializer):
+    """
+    Serializer cho model OrderDetail để hiển thị chi tiết đơn hàng. Lý do có thêm serializer là nó tự động thực hiện join
+    dữ liệu từ các bảng khóa ngoại.
+
+    Lớp kế thừa: serializers.ModelSerializer
+
+    Thuộc tính:
+        variation (VariationSerializer): Serializer cho biến thể sản phẩm.
+        product (CreateProductSerializer): Serializer cho sản phẩm.
+
+    Meta
+        model: OrderDetail
+        fields: bao gồm tất cả các trường.
+
+    """
+
+    variation = VariationSerializer()
+    product = CreateProductSerializer()
+
+    class Meta:
+        model = OrderDetail
+        fields = "__all__"
+
+
 class ViewOrderDetailSerializer(serializers.ModelSerializer):
     """
     Serializer cho model OrderDetail để hiển thị chi tiết đơn hàng. Lý do có thêm serializer là nó tự động thực hiện join
@@ -335,7 +360,7 @@ class ViewOrderSerializer(serializers.ModelSerializer):
 
     """
 
-    order_details = ViewOrderDetailSerializer(many=True)
+    order_details = ViewOrderDetailAltSerializer(many=True)
     created_by = UserSerializer()
 
     class Meta:
@@ -894,6 +919,31 @@ class ListProductSerializer(serializers.ModelSerializer):
         else:
             representation["is_favorited"] = False
         return representation
+
+
+class ViewOrderDetailAltSerializer(serializers.ModelSerializer):
+    """
+    Serializer cho model OrderDetail để hiển thị chi tiết đơn hàng. Lý do có thêm serializer là nó tự động thực hiện join
+    dữ liệu từ các bảng khóa ngoại.
+
+    Lớp kế thừa: serializers.ModelSerializer
+
+    Thuộc tính:
+        variation (VariationSerializer): Serializer cho biến thể sản phẩm.
+        product (CreateProductSerializer): Serializer cho sản phẩm.
+
+    Meta
+        model: OrderDetail
+        fields: bao gồm tất cả các trường.
+
+    """
+
+    variation = VariationSerializer()
+    product = ListProductSerializer()
+
+    class Meta:
+        model = OrderDetail
+        fields = "__all__"
 
 
 class FileUploadSerializer(serializers.Serializer):

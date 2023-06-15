@@ -266,6 +266,7 @@ class UserView(ListAPIView):
     """
     permission_classes = (IsAuthenticated, IsAdminUser)
     serializer_class = UserSerializer
+    queryset = User.objects.all()
 
 
 class OrderView(ListAPIView):
@@ -280,7 +281,7 @@ class OrderView(ListAPIView):
     Kế thừa:
         ListAPIView: API truy vấn dưới dạng danh sách
     """
-    queryset = Order.objects.all()
+    queryset = Order.objects.all().order_by('-created_at')
     permission_classes = (IsAuthenticated, IsAdminUser)
     serializer_class = ViewOrderSerializer
 
@@ -1255,7 +1256,7 @@ class SaleStatisticsAPIView(GenericAPIView):
 
         if len(prev_queryset) != 0:
             _, prev_total = self.get_df_sum(prev_queryset)
-            growth = int(total * 100 / float(prev_total) - 100)
+            growth = int(float(total) * 100 / float(prev_total) - 100)
         else:
             growth = 0
         return {
@@ -1367,7 +1368,7 @@ class TopProductStatisticsAPIView(GenericAPIView):
             item['product'] = ListProductSerializer(instance=Product.objects.get(id=item['product']),
                                                     context={'request': self.request}).data
         return res
-    
+
     def get(self, request):
         range_type = request.query_params.get('range_type')
         if not range_type:
@@ -1462,6 +1463,8 @@ class TopCategoriesAPIView(GenericAPIView):
         arr = top_categories_df.reset_index().rename(columns={'index': 'category'}).to_dict(orient="records")
         for obj in arr:
             obj['percentage'] = round(obj['qty'] * 100.0 / sum_qty)
+            obj["category"] = CategorySerializer(instance=Category.objects.get(id=obj['category'])).data
+
         return arr, new_buyers_percent, returning_percent
 
     def get(self, request):
