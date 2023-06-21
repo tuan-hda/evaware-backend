@@ -91,7 +91,7 @@ WSGI_APPLICATION = "evaware_backend.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 DATABASE_NAME = os.getenv("DATABASE_NAME")
-USER = os.getenv("USER")
+PG_USER = os.getenv("PG_USER")
 PASSWORD = os.getenv("PASSWORD")
 HOST = os.getenv("HOST")
 
@@ -99,7 +99,7 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
         "NAME": DATABASE_NAME,
-        "USER": USER,
+        "USER": PG_USER,
         "PASSWORD": PASSWORD,
         "HOST": HOST,
         "PORT": "5432",
