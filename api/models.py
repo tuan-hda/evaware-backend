@@ -208,7 +208,7 @@ class Review(TrackingModel):
     variation = models.ForeignKey(Variation, on_delete=models.CASCADE, related_name='reviews')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews', related_query_name='review')
-    img_urls = ArrayField(models.TextField(default='', blank=True, null=True), default=[], blank=True)
+    img_urls = ArrayField(models.TextField(default='', blank=True, null=True), default=list, blank=True)
 
 
 class Address(TrackingModel):
