@@ -1,6 +1,5 @@
 boto3==1.26.142
 Django==4.2.1
-Django==3.2.12
 django_filter==23.2
 djangorestframework==3.14.0
 drf_yasg==1.21.5
