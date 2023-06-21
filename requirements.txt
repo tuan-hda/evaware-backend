@@ -1,9 +1,12 @@
 boto3==1.26.142
+Django==4.2.1
 Django==3.2.12
+django_filter==23.2
 djangorestframework==3.14.0
-drf_yasg==1.21.6
+drf_yasg==1.21.5
 pandas==2.0.2
 python-dotenv==1.0.0
-django-filter==23.2
-django-storages==1.13.2
+PyJWT==2.7.0
+psycopg==3.1.9
+psycopg-binary==3.1.9
 psycopg2==2.9.6
