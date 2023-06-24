@@ -58,9 +58,9 @@ class Product(TrackingModel, SoftDeleteModel):
     avg_rating = models.DecimalField(default=0, blank=True, null=True, decimal_places=1, max_digits=20)
     variations_count = models.IntegerField(default=0)
     material = models.TextField(default='', blank=True, null=True)
+    length = models.DecimalField(default=0, blank=True, null=True, decimal_places=2, max_digits=20)
     width = models.DecimalField(default=0, blank=True, null=True, decimal_places=2, max_digits=20)
     height = models.DecimalField(default=0, blank=True, null=True, decimal_places=2, max_digits=20)
-    depth = models.DecimalField(default=0, blank=True, null=True, decimal_places=2, max_digits=20)
     weight = models.DecimalField(default=0, blank=True, null=True, decimal_places=2, max_digits=20)
     more_info = models.TextField(default='', blank=True, null=True)
 
@@ -208,7 +208,7 @@ class Review(TrackingModel):
     variation = models.ForeignKey(Variation, on_delete=models.CASCADE, related_name='reviews')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews', related_query_name='review')
-    img_urls = ArrayField(models.TextField(default='', blank=True, null=True), default=[], blank=True)
+    img_urls = ArrayField(models.TextField(default='', blank=True, null=True), default=list, blank=True)
 
 
 class Address(TrackingModel):

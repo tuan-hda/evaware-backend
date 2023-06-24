@@ -51,4 +51,5 @@ urlpatterns = [
     path('statistics/top-product', TopProductStatisticsAPIView.as_view(), name='statistics-top-product'),
     path('statistics/top-categories', TopCategoriesAPIView.as_view(), name='statistics-top-product'),
     path('filter/get-filters', GetProductFilter.as_view(), name='get-filters'),
+    path('filter/get-filters/<int:id>', GetProductFilter.as_view(), name='get-filters-by-category'),
 ]

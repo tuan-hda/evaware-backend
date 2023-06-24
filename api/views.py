@@ -9,6 +9,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveUpdateDestroyAPIView, RetrieveUpdateAPIView, \
     GenericAPIView, UpdateAPIView, RetrieveDestroyAPIView, DestroyAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from django.db.models import Q
 
 from authentication.models import User
 from helpers.mixins import IncludeDeleteMixin
@@ -56,16 +57,41 @@ class ProductView(IncludeDeleteMixin, ListAPIView):
     filterset_fields = {
         'id': ['exact'],
         'name': ['exact'], 'desc': ['exact'], 'price': ['exact', 'gte', 'lte'], 'avg_rating': ['exact'],
-        'variation__name': ['exact'],
-        'reviews_count': ['exact'], 'category__name': ['exact'], 'category__id': ['exact'], 'width': ['exact'],
-        'height': ['exact'], 'depth': ['exact'], 'weight': ['exact'],
-        'material': ['exact'],
+        'reviews_count': ['exact'], 'category__name': ['exact'], 'category__id': ['exact'],
     }
 
     search_fields = ['id', 'name', 'desc', 'price', 'avg_rating', 'variation__name', 'reviews_count',
                      'category__name']
     ordering_fields = ['id', 'name', 'desc', 'price', 'avg_rating', 'variation__name', 'reviews_count',
                        'category__name', 'category__id']
+
+    def create_q(self, field_name, temp):
+        field_values = self.request.query_params.get(field_name)
+        if field_values:
+            field_values = field_values.split('|')
+            query = Q()
+            for x in field_values:
+                query |= Q(**{field_name: x})
+            temp['query'] &= query
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        query = Q()
+        temp = {
+            "query": query
+        }
+
+        self.create_q('length', temp)
+        self.create_q('width', temp)
+        self.create_q('height', temp)
+        self.create_q('weight', temp)
+        self.create_q('material', temp)
+        self.create_q('variation__name', temp)
+
+        queryset = queryset.filter(temp['query']).distinct('id')
+
+        return queryset
 
 
 class CreateProductView(CreateAPIView):
@@ -1480,14 +1506,18 @@ class TopCategoriesAPIView(GenericAPIView):
 class GetProductFilter(IncludeDeleteMixin, GenericAPIView):
     query_model = Product
 
-    def get(self, request):
-        result = Product.objects.aggregate(max_price=Max('price'), min_price=Min('price'))
-        width = self.get_queryset().order_by('width').values_list('width', flat=True).distinct('width')
-        height = self.get_queryset().order_by('height').values_list('height', flat=True).distinct('height')
-        depth = self.get_queryset().order_by('depth').values_list('depth', flat=True).distinct('depth')
-        weight = self.get_queryset().order_by('weight').values_list('weight', flat=True).distinct('weight')
-        material = self.get_queryset().order_by('material').values_list('material', flat=True).distinct('material')
-        variations = []
+    def get(self, request, *args, **kwargs):
+        category_id = kwargs.get('id')
+        if category_id is not None:
+            queryset = self.get_queryset().filter(category_id=category_id)
+        else:
+            queryset = self.get_queryset()
+        result = queryset.aggregate(max_price=Max('price'), min_price=Min('price'))
+        width = queryset.order_by('width').values_list('width', flat=True).distinct('width')
+        height = queryset.order_by('height').values_list('height', flat=True).distinct('height')
+        length = queryset.order_by('length').values_list('length', flat=True).distinct('length')
+        weight = queryset.order_by('weight').values_list('weight', flat=True).distinct('weight')
+        material = queryset.order_by('material').values_list('material', flat=True).distinct('material')
 
         include_delete = self.request.query_params.get('include_delete')
         if include_delete:
@@ -1495,7 +1525,7 @@ class GetProductFilter(IncludeDeleteMixin, GenericAPIView):
         else:
             variations = Variation.undeleted_objects.all()
 
-        variations = variations.filter(product__in=self.get_queryset()).order_by('name').values_list(
+        variations = variations.filter(product__in=queryset).order_by('name').values_list(
             'name', flat=True).distinct('name')
 
         return Response({
@@ -1503,7 +1533,7 @@ class GetProductFilter(IncludeDeleteMixin, GenericAPIView):
             'min_price': result['min_price'],
             'width': list(width),
             'height': list(height),
-            'depth': list(depth),
+            'length': list(length),
             'weight': list(weight),
             'material': list(material),
             'variation': list(variations)
