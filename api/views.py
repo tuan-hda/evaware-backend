@@ -1480,8 +1480,12 @@ class TopCategoriesAPIView(GenericAPIView):
 class GetProductFilter(IncludeDeleteMixin, GenericAPIView):
     query_model = Product
 
-    def get(self, request, id):
-        queryset = self.get_queryset().filter(category_id=id)
+    def get(self, request, *args, **kwargs):
+        category_id = kwargs.get('id')
+        if category_id is not None:
+            queryset = self.get_queryset().filter(category_id=category_id)
+        else:
+            queryset = self.get_queryset()
         result = queryset.aggregate(max_price=Max('price'), min_price=Min('price'))
         width = queryset.order_by('width').values_list('width', flat=True).distinct('width')
         height = queryset.order_by('height').values_list('height', flat=True).distinct('height')
