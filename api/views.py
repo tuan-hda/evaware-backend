@@ -58,7 +58,7 @@ class ProductView(IncludeDeleteMixin, ListAPIView):
         'name': ['exact'], 'desc': ['exact'], 'price': ['exact', 'gte', 'lte'], 'avg_rating': ['exact'],
         'variation__name': ['exact'],
         'reviews_count': ['exact'], 'category__name': ['exact'], 'category__id': ['exact'], 'width': ['exact'],
-        'height': ['exact'], 'depth': ['exact'], 'weight': ['exact'],
+        'height': ['exact'], 'length': ['exact'], 'weight': ['exact'],
         'material': ['exact'],
     }
 
@@ -1484,7 +1484,7 @@ class GetProductFilter(IncludeDeleteMixin, GenericAPIView):
         result = Product.objects.aggregate(max_price=Max('price'), min_price=Min('price'))
         width = self.get_queryset().order_by('width').values_list('width', flat=True).distinct('width')
         height = self.get_queryset().order_by('height').values_list('height', flat=True).distinct('height')
-        depth = self.get_queryset().order_by('depth').values_list('depth', flat=True).distinct('depth')
+        length = self.get_queryset().order_by('length').values_list('length', flat=True).distinct('length')
         weight = self.get_queryset().order_by('weight').values_list('weight', flat=True).distinct('weight')
         material = self.get_queryset().order_by('material').values_list('material', flat=True).distinct('material')
         variations = []
@@ -1503,7 +1503,7 @@ class GetProductFilter(IncludeDeleteMixin, GenericAPIView):
             'min_price': result['min_price'],
             'width': list(width),
             'height': list(height),
-            'depth': list(depth),
+            'length': list(length),
             'weight': list(weight),
             'material': list(material),
             'variation': list(variations)
