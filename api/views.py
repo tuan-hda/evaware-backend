@@ -57,9 +57,9 @@ class ProductView(IncludeDeleteMixin, ListAPIView):
         'id': ['exact'],
         'name': ['exact'], 'desc': ['exact'], 'price': ['exact', 'gte', 'lte'], 'avg_rating': ['exact'],
         'variation__name': ['exact'],
-        'reviews_count': ['exact'], 'category__name': ['exact'], 'category__id': ['exact'], 'width': ['exact'],
-        'height': ['exact'], 'length': ['exact'], 'weight': ['exact'],
-        'material': ['exact'],
+        'reviews_count': ['exact'], 'category__name': ['exact'], 'category__id': ['exact'], 'width': ['in', 'exact'],
+        'height': ['exact', 'in'], 'length': ['exact', 'in'], 'weight': ['exact', 'in'],
+        'material': ['exact', 'in'],
     }
 
     search_fields = ['id', 'name', 'desc', 'price', 'avg_rating', 'variation__name', 'reviews_count',
