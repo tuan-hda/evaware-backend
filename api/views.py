@@ -9,6 +9,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveUpdateDestroyAPIView, RetrieveUpdateAPIView, \
     GenericAPIView, UpdateAPIView, RetrieveDestroyAPIView, DestroyAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from django.db.models import Q
 
 from authentication.models import User
 from helpers.mixins import IncludeDeleteMixin
@@ -56,16 +57,41 @@ class ProductView(IncludeDeleteMixin, ListAPIView):
     filterset_fields = {
         'id': ['exact'],
         'name': ['exact'], 'desc': ['exact'], 'price': ['exact', 'gte', 'lte'], 'avg_rating': ['exact'],
-        'variation__name': ['exact', 'in'],
-        'reviews_count': ['exact'], 'category__name': ['exact'], 'category__id': ['exact'], 'width': ['in', 'exact'],
-        'height': ['exact', 'in'], 'length': ['exact', 'in'], 'weight': ['exact', 'in'],
-        'material': ['exact', 'in'],
+        'reviews_count': ['exact'], 'category__name': ['exact'], 'category__id': ['exact'],
     }
 
     search_fields = ['id', 'name', 'desc', 'price', 'avg_rating', 'variation__name', 'reviews_count',
                      'category__name']
     ordering_fields = ['id', 'name', 'desc', 'price', 'avg_rating', 'variation__name', 'reviews_count',
                        'category__name', 'category__id']
+
+    def create_q(self, field_name, temp):
+        field_values = self.request.query_params.get(field_name)
+        if field_values:
+            field_values = field_values.split('|')
+            query = Q()
+            for x in field_values:
+                query |= Q(**{field_name: x})
+            temp['query'] &= query
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        query = Q()
+        temp = {
+            "query": query
+        }
+
+        self.create_q('length', temp)
+        self.create_q('width', temp)
+        self.create_q('height', temp)
+        self.create_q('weight', temp)
+        self.create_q('material', temp)
+        self.create_q('variation__name', temp)
+
+        queryset = queryset.filter(temp['query'])
+
+        return queryset
 
 
 class CreateProductView(CreateAPIView):
