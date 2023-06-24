@@ -89,7 +89,7 @@ class ProductView(IncludeDeleteMixin, ListAPIView):
         self.create_q('material', temp)
         self.create_q('variation__name', temp)
 
-        queryset = queryset.filter(temp['query']).distinct('id')
+        queryset = queryset.filter(temp['query']).order_by('-id').distinct('id')
 
         return queryset
 
