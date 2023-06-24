@@ -58,9 +58,9 @@ class Product(TrackingModel, SoftDeleteModel):
     avg_rating = models.DecimalField(default=0, blank=True, null=True, decimal_places=1, max_digits=20)
     variations_count = models.IntegerField(default=0)
     material = models.TextField(default='', blank=True, null=True)
+    length = models.DecimalField(default=0, blank=True, null=True, decimal_places=2, max_digits=20)
     width = models.DecimalField(default=0, blank=True, null=True, decimal_places=2, max_digits=20)
     height = models.DecimalField(default=0, blank=True, null=True, decimal_places=2, max_digits=20)
-    depth = models.DecimalField(default=0, blank=True, null=True, decimal_places=2, max_digits=20)
     weight = models.DecimalField(default=0, blank=True, null=True, decimal_places=2, max_digits=20)
     more_info = models.TextField(default='', blank=True, null=True)
 
