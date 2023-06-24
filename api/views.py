@@ -56,7 +56,7 @@ class ProductView(IncludeDeleteMixin, ListAPIView):
     filterset_fields = {
         'id': ['exact'],
         'name': ['exact'], 'desc': ['exact'], 'price': ['exact', 'gte', 'lte'], 'avg_rating': ['exact'],
-        'variation__name': ['exact'],
+        'variation__name': ['exact', 'in'],
         'reviews_count': ['exact'], 'category__name': ['exact'], 'category__id': ['exact'], 'width': ['in', 'exact'],
         'height': ['exact', 'in'], 'length': ['exact', 'in'], 'weight': ['exact', 'in'],
         'material': ['exact', 'in'],
