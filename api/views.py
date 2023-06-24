@@ -1480,14 +1480,14 @@ class TopCategoriesAPIView(GenericAPIView):
 class GetProductFilter(IncludeDeleteMixin, GenericAPIView):
     query_model = Product
 
-    def get(self, request):
-        result = Product.objects.aggregate(max_price=Max('price'), min_price=Min('price'))
-        width = self.get_queryset().order_by('width').values_list('width', flat=True).distinct('width')
-        height = self.get_queryset().order_by('height').values_list('height', flat=True).distinct('height')
-        length = self.get_queryset().order_by('length').values_list('length', flat=True).distinct('length')
-        weight = self.get_queryset().order_by('weight').values_list('weight', flat=True).distinct('weight')
-        material = self.get_queryset().order_by('material').values_list('material', flat=True).distinct('material')
-        variations = []
+    def get(self, request, id):
+        queryset = self.get_queryset().filter(category_id=id)
+        result = queryset.aggregate(max_price=Max('price'), min_price=Min('price'))
+        width = queryset.order_by('width').values_list('width', flat=True).distinct('width')
+        height = queryset.order_by('height').values_list('height', flat=True).distinct('height')
+        length = queryset.order_by('length').values_list('length', flat=True).distinct('length')
+        weight = queryset.order_by('weight').values_list('weight', flat=True).distinct('weight')
+        material = queryset.order_by('material').values_list('material', flat=True).distinct('material')
 
         include_delete = self.request.query_params.get('include_delete')
         if include_delete:
@@ -1495,7 +1495,7 @@ class GetProductFilter(IncludeDeleteMixin, GenericAPIView):
         else:
             variations = Variation.undeleted_objects.all()
 
-        variations = variations.filter(product__in=self.get_queryset()).order_by('name').values_list(
+        variations = variations.filter(product__in=queryset).order_by('name').values_list(
             'name', flat=True).distinct('name')
 
         return Response({
