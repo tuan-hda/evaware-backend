@@ -14,6 +14,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 
+from recombee_api_client.api_client import RecombeeClient, Region
+
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -36,6 +38,13 @@ AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME")
 AWS_S3_FILE_OVERWRITE = False
 AWS_DISTRIBUTION_DOMAIN = os.getenv("AWS_DISTRIBUTION_DOMAIN")
 # STORAGES = {"default": {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"}}
+
+# Recombee client
+recombee = RecombeeClient(
+    os.getenv("RECOMBEE_DB_NAME"),
+    os.getenv("RECOMBEE_DB_TOKEN"),
+    region=Region.AP_SE
+)
 
 ALLOWED_HOSTS = ["*"]
 
