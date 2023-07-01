@@ -4,15 +4,17 @@ from django.db.models import Max, Min
 from django.utils import timezone
 from django.utils.timezone import make_aware
 from django_filters.rest_framework import DjangoFilterBackend
+from recombee_api_client.api_requests import SetItemValues
 from rest_framework import generics, status, filters, response, serializers
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, APIException
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveUpdateDestroyAPIView, RetrieveUpdateAPIView, \
     GenericAPIView, UpdateAPIView, RetrieveDestroyAPIView, DestroyAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.db.models import Q
 
 from authentication.models import User
-from helpers.mixins import IncludeDeleteMixin
+from evaware_backend.settings import recombee
+from helpers.mixins import IncludeDeleteMixin, RecombeeProductMixin
 from .pagination import CustomPageNumberPagination
 from .serializers import CreateProductSerializer, CategorySerializer, UserSerializer, \
     VariationSerializer, OrderSerializer, ReviewSerializer, ProductDetailSerializer, ViewOrderSerializer, \
@@ -94,7 +96,7 @@ class ProductView(IncludeDeleteMixin, ListAPIView):
         return queryset
 
 
-class CreateProductView(CreateAPIView):
+class CreateProductView(CreateAPIView, RecombeeProductMixin):
     """
     API View cho việc tạo mới sản phẩm (Product).
 
@@ -109,8 +111,21 @@ class CreateProductView(CreateAPIView):
     serializer_class = CreateProductSerializer
     permission_classes = (IsAuthenticated, IsAdminUser)
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
 
-class ProductDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView):
+        is_successful = self.set_recombee_item(serializer.instance, cascade_create=True)
+        if is_successful == 1:
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        else:
+            serializer.instance.delete()
+            return self.recombee_network_error()
+
+
+class ProductDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView, RecombeeProductMixin):
     """
     View cho việc hiển thị, cập nhật và xóa sản phẩm chi tiết (Product).
 
@@ -154,6 +169,54 @@ class ProductDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView):
             return ProductDetailSerializer
         else:
             return CreateProductSerializer
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        old_data = self.get_serializer(instance, partial=partial).data
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+
+        if self.set_recombee_item(serializer.instance) == 1:
+            return Response(serializer.data)
+        else:
+            old_serializer = self.get_serializer(instance, data=old_data, partial=partial)
+            old_serializer.is_valid()
+            self.perform_update(old_serializer)
+            return self.recombee_network_error()
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        is_successful = self.set_recombee_item(instance, True)
+        if is_successful == 1:
+            self.perform_destroy(instance)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        else:
+            return self.recombee_network_error()
+
+
+class RestoreProductAPIView(GenericAPIView, RecombeeProductMixin):
+    lookup_field = 'id'
+
+    def post(self, request, id, *args, **kwargs):
+        instance = Product.objects.get(id=id)
+        if self.set_recombee_item(instance) == 1:
+            instance.restore()
+            return Response(status=status.HTTP_200_OK)
+        else:
+            return self.recombee_network_error()
+
+
+class DeleteRecombeeProductAPIView(GenericAPIView, RecombeeProductMixin):
+    lookup_field = 'id'
+
+    def delete(self, request, id, *args, **kwargs):
+        self.delete_recombee_item(id)
+        return Response(data={"message": "deleted from Recombee successfully"}, status=status.HTTP_200_OK)
 
 
 class CategoryView(IncludeDeleteMixin, ListAPIView):
@@ -374,7 +437,7 @@ class OrderDetailAPIView(RetrieveUpdateAPIView):
         return obj
 
 
-class CreateReviewAPIView(CreateAPIView):
+class CreateReviewAPIView(CreateAPIView, RecombeeProductMixin):
     """
     View cho việc tạo đánh giá mới (Review).
 
@@ -388,8 +451,21 @@ class CreateReviewAPIView(CreateAPIView):
     serializer_class = ReviewSerializer
     permission_classes = (IsAuthenticated,)
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
 
-class ReviewDetailAPIView(RetrieveUpdateDestroyAPIView):
+        review = serializer.instance
+        if self.set_recombee_item(review.product, review=review.rating) == 1:
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        else:
+            review.delete()
+            return self.recombee_network_error()
+
+
+class ReviewDetailAPIView(RetrieveUpdateDestroyAPIView, RecombeeProductMixin):
     """
     View cho việc hiển thị, cập nhật, xóa chi tiết đánh giá (Review).
 
@@ -433,6 +509,34 @@ class ReviewDetailAPIView(RetrieveUpdateDestroyAPIView):
         if obj.created_by != self.request.user:
             raise PermissionDenied("You do not have permission to access this.")
         return obj
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        old_rating = instance.rating
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+
+        review = serializer.instance
+        if self.set_recombee_item(review.product, review=review.rating, old_review=old_rating) == 1:
+            return Response(serializer.data)
+        else:
+            review.rating = old_rating
+            review.save()
+            return self.recombee_network_error()
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        review = instance
+        if self.set_recombee_item(review.product, review=-review.rating) == 1:
+            self.perform_destroy(instance)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        else:
+            return self.recombee_network_error()
 
 
 class UserUpdateProfileAPIView(UpdateAPIView):

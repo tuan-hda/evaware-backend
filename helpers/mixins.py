@@ -1,6 +1,11 @@
+from recombee_api_client.api_requests import SetItemValues, DeleteItem
+from recombee_api_client.exceptions import APIException
+from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.response import Response
 
 from api.models import Product
+from evaware_backend.settings import recombee
 
 
 class IncludeDeleteMixin:
@@ -44,3 +49,46 @@ class IncludeDeleteMixin:
 
     def perform_destroy(self, instance):
         instance.soft_delete()
+
+
+class RecombeeProductMixin:
+    def set_recombee_item(self, product, is_deleted=False, review=0, old_review=0, cascade_create=False):
+        product_id = product.id
+
+        if review != 0:
+            if old_review == 0:
+                reviews_count = product.reviews_count + (1 if review > 0 else -1)
+            else:
+                reviews_count = product.reviews_count
+            avg_rating = (product.avg_rating * product.reviews_count + review - old_review) / reviews_count
+        else:
+            reviews_count = product.reviews_count
+            avg_rating = product.avg_rating
+
+        try:
+            recombee.send(SetItemValues(str(product_id),
+                                        {
+                                            "name": product.name,
+                                            "desc": product.desc,
+                                            "price": float(product.price),
+                                            "category_id": product.category_id,
+                                            "category_name": product.category.name,
+                                            "thumbnail": product.thumbnail,
+                                            "reviews_count": reviews_count,
+                                            "discount": product.discount,
+                                            "avg_rating": float(avg_rating),
+                                            "is_deleted": is_deleted
+                                        },
+                                        cascade_create=cascade_create
+                                        ))
+            return 1
+        except APIException as e:
+            print(e)
+            return 0
+
+    def recombee_network_error(self):
+        return Response(data={"message": "Recombee network error - Sent request failed"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete_recombee_item(self, item_id):
+        recombee.send(DeleteItem(str(item_id)))
