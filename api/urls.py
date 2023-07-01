@@ -7,12 +7,15 @@ from .views import ProductView, CreateProductView, ProductDetailAPIView, Categor
     PaymentListView, CreatePaymentView, PaymentDetailAPIView, CartItemListView, AddToCartView, CartItemDetailAPIView, \
     ChangeQtyCartItemAPIView, FavoriteItemListView, AddItemToFavoriteView, DeleteFavoriteItemView, \
     MakeOrderFromCartView, CreateVoucherView, VoucherView, VoucherDetailAPIView, GetVoucherFromCodeView, FileUploadView, \
-    SaleStatisticsAPIView, TopProductStatisticsAPIView, TopCategoriesAPIView, GetProductFilter
+    SaleStatisticsAPIView, TopProductStatisticsAPIView, TopCategoriesAPIView, GetProductFilter, RestoreProductAPIView, \
+    DeleteRecombeeProductAPIView
 
 urlpatterns = [
     path('product/', ProductView.as_view(), name='get-all-products'),
     path('product/create', CreateProductView.as_view()),
     path('product/<int:id>', ProductDetailAPIView.as_view(), name='product'),
+    path('product/<int:id>/restore', RestoreProductAPIView.as_view(), name='restore-product'),
+    path('product/<int:id>/recombee-delete', DeleteRecombeeProductAPIView.as_view(), name='delete-recombee-product'),
     path('category/', CategoryView.as_view(), name='get-all-categories'),
     path('category/create', CreateCategoryView.as_view(), name='create-category'),
     path('category/<int:id>', CategoryDetailAPIView.as_view(), name='category'),
