@@ -8,7 +8,8 @@ from .views import ProductView, CreateProductView, ProductDetailAPIView, Categor
     ChangeQtyCartItemAPIView, FavoriteItemListView, AddItemToFavoriteView, DeleteFavoriteItemView, \
     MakeOrderFromCartView, CreateVoucherView, VoucherView, VoucherDetailAPIView, GetVoucherFromCodeView, FileUploadView, \
     SaleStatisticsAPIView, TopProductStatisticsAPIView, TopCategoriesAPIView, GetProductFilter, RestoreProductAPIView, \
-    DeleteRecombeeProductAPIView, DeleteRecombeeUserAPIView, RecommendProductsForUserAPIView, PersonalizedSearchAPIView
+    DeleteRecombeeProductAPIView, DeleteRecombeeUserAPIView, RecommendProductsForUserAPIView, PersonalizedSearchAPIView, \
+    SuggestVoucher, CreateRewardVoucher
 
 urlpatterns = [
     path('product/', ProductView.as_view(), name='get-all-products'),
@@ -50,6 +51,8 @@ urlpatterns = [
     path('favorite/<int:id>', DeleteFavoriteItemView.as_view(), name='delete-favorite'),
     path('voucher/', VoucherView.as_view(), name='get-all-vouchers'),
     path('voucher/create', CreateVoucherView.as_view(), name='create-voucher'),
+    path('voucher/create-reward', CreateRewardVoucher.as_view(), name='create-reward-voucher'),
+    path('voucher/recommend', SuggestVoucher.as_view(), name='get-recommend-voucher'),
     path('voucher/<int:id>', VoucherDetailAPIView.as_view(), name='voucher'),
     path('voucher/get-from-code', GetVoucherFromCodeView.as_view(), name='get-voucher-from-code'),
     path('upload', FileUploadView.as_view(), name='file-upload'),

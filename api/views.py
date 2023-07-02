@@ -1,3 +1,5 @@
+import random
+import string
 from datetime import datetime, timedelta
 
 from django.db.models import Max, Min
@@ -92,7 +94,7 @@ class ProductView(IncludeDeleteMixin, ListAPIView):
         self.create_q('material', temp)
         self.create_q('variation__name', temp)
 
-        queryset = queryset.filter(temp['query']).order_by('-id').distinct('id')
+        queryset = Product.undeleted_objects.filter(temp['query']).distinct('id', 'price').order_by('-id')
 
         return queryset
 
@@ -1326,6 +1328,34 @@ class VoucherView(ListAPIView):
     serializer_class = VoucherSerializer
 
 
+class CreateRewardVoucher(GenericAPIView):
+    def post(self, request):
+        reward_list = [[2, 1000], [3, 1500], [5, 2500], [7, 4000], [10, 8000], [15, 15000]]
+        level = int(self.request.data.get('level'))
+
+        if level is not None:
+            reward = reward_list[level - 1]
+            exist_voucher = Voucher.objects.filter(owner=self.request.user, level=level)
+            if len(exist_voucher) == 0:
+                if self.request.user.points < reward[1]:
+                    raise serializers.ValidationError("Not enough points")
+                Voucher.objects.create(
+                    discount=reward[0],
+                    from_date=(datetime.now() - timedelta(days=1)).date(),
+                    to_date=(datetime.now() + timedelta(days=10000)).date(),
+                    code=''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8)),
+                    inventory=1,
+                    level=level,
+                    owner=self.request.user
+                )
+            else:
+                raise serializers.ValidationError("Voucher already exists")
+        else:
+            if not self.request.user.is_superuser and not self.request.user.is_staff:
+                raise PermissionDenied("You do not have permission to perform this action")
+        return Response({"message": 'success'}, status=status.HTTP_200_OK)
+
+
 class CreateVoucherView(CreateAPIView):
     """
     View cho việc tạo voucher mới.
@@ -1753,3 +1783,18 @@ class GetProductFilter(IncludeDeleteMixin, GenericAPIView):
             'material': list(material),
             'variation': list(variations)
         }, status=status.HTTP_200_OK)
+
+
+class SuggestVoucher(GenericAPIView):
+    def get(self, request, *args, **kwargs):
+        if not request.user.is_superuser and not request.user.is_staff:
+            raise PermissionDenied("You do not have permission to access this")
+
+        ordered_product = OrderDetail.objects.values_list('product__id', flat=True)
+
+        current_time = datetime.now()
+        query_set = Product.undeleted_objects.exclude(id__in=ordered_product).filter(
+            created_at__lte=current_time - timedelta(days=90))
+        serializer = ListProductSerializer(data=query_set, many=True, context={'request': request})
+        serializer.is_valid()
+        return Response(serializer.data, status=status.HTTP_200_OK)

@@ -105,6 +105,7 @@ class User(AbstractBaseUser, PermissionsMixin, TrackingModel):
     phone = models.CharField(max_length=15, null=True)
     gender = models.CharField(max_length=15, null=True, default='Male')
     avatar = models.TextField(default='')
+    points = models.IntegerField(default='0')
     objects = MyUserManager()
 
     EMAIL_FIELD = "email"
