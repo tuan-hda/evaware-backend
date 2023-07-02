@@ -8,11 +8,13 @@ from .views import ProductView, CreateProductView, ProductDetailAPIView, Categor
     ChangeQtyCartItemAPIView, FavoriteItemListView, AddItemToFavoriteView, DeleteFavoriteItemView, \
     MakeOrderFromCartView, CreateVoucherView, VoucherView, VoucherDetailAPIView, GetVoucherFromCodeView, FileUploadView, \
     SaleStatisticsAPIView, TopProductStatisticsAPIView, TopCategoriesAPIView, GetProductFilter, RestoreProductAPIView, \
-    DeleteRecombeeProductAPIView
+    DeleteRecombeeProductAPIView, DeleteRecombeeUserAPIView, RecommendProductsForUserAPIView, PersonalizedSearchAPIView
 
 urlpatterns = [
     path('product/', ProductView.as_view(), name='get-all-products'),
     path('product/create', CreateProductView.as_view()),
+    path('product/recommend', RecommendProductsForUserAPIView.as_view(), name='get-recommend'),
+    path('product/recommend/search', PersonalizedSearchAPIView.as_view(), name='persionalized-search'),
     path('product/<int:id>', ProductDetailAPIView.as_view(), name='product'),
     path('product/<int:id>/restore', RestoreProductAPIView.as_view(), name='restore-product'),
     path('product/<int:id>/recombee-delete', DeleteRecombeeProductAPIView.as_view(), name='delete-recombee-product'),
@@ -31,6 +33,7 @@ urlpatterns = [
     path('user/current', CurrentUserAPIView.as_view(), name='user'),
     path('user/<int:id>', UserUpdateProfileAPIView.as_view(), name='update-profile'),
     path('user/<int:id>/admin', AdminUpdateUserAPIView.as_view(), name='update-user-admin'),
+    path('user/<int:id>/recombee-delete', DeleteRecombeeUserAPIView.as_view(), name='delete-recombee-user'),
     path('address/', AddressListView.as_view(), name='get-user-address'),
     path('address/create', CreateAddressView.as_view(), name='create-address'),
     path('address/<int:id>', AddressDetailAPIView.as_view(), name='address'),

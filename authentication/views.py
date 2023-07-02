@@ -6,10 +6,11 @@ from rest_framework import response, status, permissions
 from api.serializers import UserSerializer, ViewUserSerializer
 from authentication.models import User
 from authentication.serializers import RegisterSerializer, LoginSerializer, ChangePasswordSerializer
+from helpers.mixins import RecombeeUserMixin, RecombeeNetworkError
 
 
 # Create your views here.
-class RegisterAPIView(GenericAPIView):
+class RegisterAPIView(GenericAPIView, RecombeeUserMixin):
     """
     API view để đăng ký người dùng.
 
@@ -37,7 +38,12 @@ class RegisterAPIView(GenericAPIView):
 
         if serializer.is_valid():
             serializer.save()
-            return response.Response(serializer.data, status=status.HTTP_201_CREATED)
+            if self.set_recombee_user(serializer.instance, True) == 1:
+
+                return response.Response(serializer.data, status=status.HTTP_201_CREATED)
+            else:
+                serializer.instance.delete()
+                return RecombeeNetworkError.recombee_network_error()
 
         return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
