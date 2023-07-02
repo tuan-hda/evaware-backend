@@ -505,10 +505,14 @@ class OrderSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Invalid status type. Must be one of ['In progress', 'Delivering', 'Cancelled', 'Success']"
             )
-        if instance.status != status and status != "Cancelled" and not user.is_staff:
+        if instance.status != status and status != "Cancelled" and not user.is_staff and not user.is_superuser:
             raise serializers.ValidationError(
                 "You do not have permissions to perform this action."
             )
+
+        if instance.status != status and status == 'Success':
+            instance.created_by.points += int(instance.total)
+            instance.created_by.save()
 
         if instance.status != status and status == "Cancelled":
             # Check voucher
@@ -651,6 +655,7 @@ class ViewUserSerializer(serializers.ModelSerializer):
 
     reviews = ViewReviewSerializerWithoutCreatedBy(many=True)
     orders = ViewOrderSerializerWithoutCreatedBy(many=True)
+    reward_vouchers = VoucherSerializer(many=True)
 
     class Meta:
         model = User

@@ -111,6 +111,9 @@ class Voucher(TrackingModel, SoftDeleteModel):
     discount = models.IntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
     from_date = models.DateField()
     to_date = models.DateField()
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reward_vouchers',
+                              related_query_name='reward_voucher', null=True, blank=True)
+    level = models.IntegerField(default=0)
 
 
 class UsedVoucher(TrackingModel):
