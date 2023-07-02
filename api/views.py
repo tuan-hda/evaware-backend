@@ -4,7 +4,7 @@ from django.db.models import Max, Min
 from django.utils import timezone
 from django.utils.timezone import make_aware
 from django_filters.rest_framework import DjangoFilterBackend
-from recombee_api_client.api_requests import SetItemValues
+from recombee_api_client.api_requests import SetItemValues, DeleteUser
 from rest_framework import generics, status, filters, response, serializers
 from rest_framework.exceptions import PermissionDenied, APIException
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveUpdateDestroyAPIView, RetrieveUpdateAPIView, \
@@ -14,7 +14,8 @@ from django.db.models import Q
 
 from authentication.models import User
 from evaware_backend.settings import recombee
-from helpers.mixins import IncludeDeleteMixin, RecombeeProductMixin
+from helpers.mixins import IncludeDeleteMixin, RecombeeProductMixin, RecombeeUserMixin, RecombeeNetworkError, \
+    RecombeeRecommendMixin
 from .pagination import CustomPageNumberPagination
 from .serializers import CreateProductSerializer, CategorySerializer, UserSerializer, \
     VariationSerializer, OrderSerializer, ReviewSerializer, ProductDetailSerializer, ViewOrderSerializer, \
@@ -22,7 +23,7 @@ from .serializers import CreateProductSerializer, CategorySerializer, UserSerial
     PaymentProviderSerializer, PaymentSerializer, ViewPaymentSerializer, ViewCartItemSerializer, CartItemSerializer, \
     FavoriteItemSerializer, ViewFavoriteItemSerializer, ListProductSerializer, VoucherSerializer, FileUploadSerializer
 from .models import Product, Category, Variation, Order, Review, Address, PaymentProvider, Payment, CartItem, \
-    FavoriteItem, Voucher
+    FavoriteItem, Voucher, OrderDetail
 from rest_framework.response import Response
 import pandas as pd
 
@@ -125,7 +126,8 @@ class CreateProductView(CreateAPIView, RecombeeProductMixin):
             return self.recombee_network_error()
 
 
-class ProductDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView, RecombeeProductMixin):
+class ProductDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView, RecombeeProductMixin, RecombeeUserMixin,
+                           RecombeeRecommendMixin):
     """
     View cho việc hiển thị, cập nhật và xóa sản phẩm chi tiết (Product).
 
@@ -197,6 +199,59 @@ class ProductDetailAPIView(IncludeDeleteMixin, RetrieveUpdateDestroyAPIView, Rec
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
             return self.recombee_network_error()
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        result = serializer.data
+        recomm_id = request.query_params.get('recomm_id')
+        if not request.user.is_superuser and not request.user.is_staff:
+            self.view_detail(request.user, instance, recomm_id=recomm_id)
+            recommend = self.recommend_items_to_item(instance, request.user, 6)
+            recommend_ids = [recomm['id'] for recomm in recommend['recomms']]
+            recommend_items = Product.undeleted_objects.filter(id__in=recommend_ids)
+            items = ListProductSerializer(data=recommend_items, many=True, context={'request': request})
+            items.is_valid()
+            result['recomm_items'] = items.data
+            result['recomm_id'] = recommend['recommId']
+
+        return Response(result)
+
+
+class RecommendProductsForUserAPIView(ListAPIView, RecombeeRecommendMixin):
+    serializer_class = ListProductSerializer
+    queryset = Product.undeleted_objects.all()
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        user = self.request.user
+        count = self.request.query_params.get('count')
+        recommend = self.recommend_items_to_user(user, count)
+        queryset = queryset.filter(id__in=[recomm['id'] for recomm in recommend['recomms']])
+
+        serializer = self.get_serializer(queryset, many=True)
+        result = {'results': serializer.data, 'recomm_id': recommend['recommId']}
+
+        return Response(result)
+
+
+class PersonalizedSearchAPIView(ListAPIView, RecombeeRecommendMixin):
+    serializer_class = ListProductSerializer
+    queryset = Product.undeleted_objects.all()
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        user = self.request.user
+        query = self.request.query_params['query']
+        recommend = self.search_items(user, query, 10)
+        queryset = queryset.filter(id__in=[recomm['id'] for recomm in recommend['recomms']])
+
+        serializer = self.get_serializer(queryset, many=True)
+        result = {'results': serializer.data, 'recomm_id': recommend['recommId']}
+
+        return Response(result)
 
 
 class RestoreProductAPIView(GenericAPIView, RecombeeProductMixin):
@@ -390,7 +445,7 @@ class CreateOrderAPIView(CreateAPIView):
     serializer_class = OrderSerializer
 
 
-class OrderDetailAPIView(RetrieveUpdateAPIView):
+class OrderDetailAPIView(RetrieveUpdateAPIView, RecombeeUserMixin):
     """
     View cho việc hiển thị, cập nhật chi tiết đơn hàng (Order).
 
@@ -436,8 +491,25 @@ class OrderDetailAPIView(RetrieveUpdateAPIView):
 
         return obj
 
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
 
-class CreateReviewAPIView(CreateAPIView, RecombeeProductMixin):
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+
+        if request.data['status'] == 'Cancelled':
+            print(str(instance.created_at.timestamp()))
+            self.cancel_order(request.user, OrderDetail.objects.filter(order_id=instance.id),
+                              instance.created_at.timestamp())
+
+        return Response(serializer.data)
+
+
+class CreateReviewAPIView(CreateAPIView, RecombeeProductMixin, RecombeeUserMixin):
     """
     View cho việc tạo đánh giá mới (Review).
 
@@ -459,13 +531,14 @@ class CreateReviewAPIView(CreateAPIView, RecombeeProductMixin):
 
         review = serializer.instance
         if self.set_recombee_item(review.product, review=review.rating) == 1:
+            self.add_rating(request.user, review.product, review.rating, review.created_at.timestamp())
             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
         else:
             review.delete()
             return self.recombee_network_error()
 
 
-class ReviewDetailAPIView(RetrieveUpdateDestroyAPIView, RecombeeProductMixin):
+class ReviewDetailAPIView(RetrieveUpdateDestroyAPIView, RecombeeProductMixin, RecombeeUserMixin):
     """
     View cho việc hiển thị, cập nhật, xóa chi tiết đánh giá (Review).
 
@@ -534,12 +607,13 @@ class ReviewDetailAPIView(RetrieveUpdateDestroyAPIView, RecombeeProductMixin):
         review = instance
         if self.set_recombee_item(review.product, review=-review.rating) == 1:
             self.perform_destroy(instance)
+            self.delete_rating(request.user, review.product, review.created_at.timestamp())
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
             return self.recombee_network_error()
 
 
-class UserUpdateProfileAPIView(UpdateAPIView):
+class UserUpdateProfileAPIView(UpdateAPIView, RecombeeUserMixin):
     """
     View cho việc cập nhật thông tin hồ sơ người dùng.
 
@@ -571,7 +645,33 @@ class UserUpdateProfileAPIView(UpdateAPIView):
         obj = super().get_object()
         if obj != self.request.user:
             raise PermissionDenied("You do not have permission to access this.")
+
         return obj
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        old_data = self.get_serializer(instance, partial=partial).data
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+
+        if self.set_recombee_user(instance) == 1:
+            return Response(serializer.data)
+        else:
+            old_serializer = self.get_serializer(instance, data=old_data, partial=partial)
+            self.perform_update(old_serializer)
+            return RecombeeNetworkError.recombee_network_error()
+
+
+class DeleteRecombeeUserAPIView(GenericAPIView):
+    def delete(self, request, id):
+        if not request.user.is_superuser and not request.user.is_staff:
+            raise PermissionDenied("You do not have permission to perform this action!")
+        recombee.send(DeleteUser(id))
 
 
 class CurrentUserAPIView(GenericAPIView):
@@ -830,7 +930,7 @@ class CartItemListView(ListAPIView):
         return CartItem.objects.filter(created_by=self.request.user)
 
 
-class AddToCartView(GenericAPIView):
+class AddToCartView(GenericAPIView, RecombeeUserMixin):
     """
     Thêm sản phẩm vào giỏ hàng.
 
@@ -882,12 +982,13 @@ class AddToCartView(GenericAPIView):
             serializer = self.serializer_class(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
+            self.add_cart(request.user, product)
             return response.Response(serializer.data, status=status.HTTP_200_OK)
 
         return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class MakeOrderFromCartView(GenericAPIView):
+class MakeOrderFromCartView(GenericAPIView, RecombeeUserMixin):
     """
     Tạo đơn hàng từ giỏ hàng.
 
@@ -968,6 +1069,8 @@ class MakeOrderFromCartView(GenericAPIView):
         serializer = self.serializer_class(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
+            print(str(serializer.instance.created_at.timestamp()))
+            self.make_order(request.user, cart_items, serializer.instance.created_at.timestamp())
             self.update_variation_qty(cart_items)
             self.remove_all_cart_items(cart_items)
             return response.Response(serializer.data, status=status.HTTP_200_OK)
@@ -975,7 +1078,7 @@ class MakeOrderFromCartView(GenericAPIView):
         return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class CartItemDetailAPIView(RetrieveDestroyAPIView):
+class CartItemDetailAPIView(RetrieveDestroyAPIView, RecombeeUserMixin):
     """
     Xem và xóa mục giỏ hàng. Chỉ cho phép thay đổi số lượng hoặc xóa, do đó không đi kèm với cập nhật các mục trong giỏ hàng ở View này
 
@@ -1008,8 +1111,14 @@ class CartItemDetailAPIView(RetrieveDestroyAPIView):
             raise PermissionDenied("You do not have permission to access this.")
         return obj
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.delete_cart(request.user, instance.product)
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
-class ChangeQtyCartItemAPIView(UpdateAPIView):
+
+class ChangeQtyCartItemAPIView(UpdateAPIView, RecombeeUserMixin):
     """
     Thay đổi số lượng mục giỏ hàng.
 
@@ -1046,7 +1155,6 @@ class ChangeQtyCartItemAPIView(UpdateAPIView):
     queryset = CartItem.objects.all()
 
     def get_object(self):
-        print("HELLO WORLD")
         obj = super().get_object()
         if obj.created_by != self.request.user:
             raise PermissionDenied("You do not have permission to access this.")
@@ -1076,6 +1184,7 @@ class ChangeQtyCartItemAPIView(UpdateAPIView):
                 f"Insufficient inventory (stock) for variation. Auto reset qty item")
 
         instance.save()
+        self.add_cart(self.request.user, instance.product, amount=(1 if action == 'inc' else -1))
 
 
 class FavoriteItemListView(ListAPIView):
@@ -1106,7 +1215,7 @@ class FavoriteItemListView(ListAPIView):
         return FavoriteItem.objects.filter(created_by=self.request.user)
 
 
-class AddItemToFavoriteView(CreateAPIView):
+class AddItemToFavoriteView(CreateAPIView, RecombeeUserMixin):
     """
     Thêm mục vào danh sách yêu thích.
 
@@ -1149,12 +1258,13 @@ class AddItemToFavoriteView(CreateAPIView):
             serializer = self.serializer_class(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
+            self.add_bookmark(request.user, product)
             return response.Response(serializer.data, status=status.HTTP_200_OK)
 
         return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class DeleteFavoriteItemView(GenericAPIView):
+class DeleteFavoriteItemView(GenericAPIView, RecombeeUserMixin):
     """
     Xóa mục khỏi danh sách yêu thích. Không có phương thức cập nhật và xem chi tiết vì không cần thiết.
 
@@ -1193,6 +1303,7 @@ class DeleteFavoriteItemView(GenericAPIView):
                 "You do not have permission to access this or you haven't like yet or wrong product id")
 
         favorite.delete()
+        self.delete_bookmark(request.user, product)
 
         return Response({'message': 'Favorite item deleted successfully'})
 
