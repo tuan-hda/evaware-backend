@@ -43,7 +43,7 @@ AWS_DISTRIBUTION_DOMAIN = os.getenv("AWS_DISTRIBUTION_DOMAIN")
 recombee = RecombeeClient(
     os.getenv("RECOMBEE_DB_NAME"),
     os.getenv("RECOMBEE_DB_TOKEN"),
-    region=Region.AP_SE
+    region=Region.AP_SE,
 )
 
 ALLOWED_HOSTS = ["*"]
@@ -140,7 +140,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 100,
     "DEFAULT_ORDERING": ["-id"],
-    'COERCE_DECIMAL_TO_STRING': False,
+    "COERCE_DECIMAL_TO_STRING": False,
 }
 
 # Internationalization
