@@ -783,7 +783,7 @@ class UserUpdateProfileAPIView(UpdateAPIView, RecombeeUserMixin):
     def update(self, request, *args, **kwargs):
         if request.user.is_superuser or request.user.is_staff:
             super().update(request, args, kwargs)
-            
+
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
@@ -1745,6 +1745,7 @@ class SaleStatisticsAPIView(GenericAPIView):
         if (to_date.year - from_date.year) * 12 + to_date.month - from_date.month > 6:
             raise serializers.ValidationError("Range exceeds 6 month!")
         num_dates = (to_date - from_date).days + 1
+        to_date = to_date + timedelta(days=1) - timedelta(milliseconds=1)
         prev_from_date = from_date - timedelta(days=num_dates)
         prev_to_date = from_date - timedelta(milliseconds=1)
 
