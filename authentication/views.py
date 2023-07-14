@@ -5,7 +5,11 @@ from rest_framework import response, status, permissions
 
 from api.serializers import UserSerializer, ViewUserSerializer
 from authentication.models import User
-from authentication.serializers import RegisterSerializer, LoginSerializer, ChangePasswordSerializer
+from authentication.serializers import (
+    RegisterSerializer,
+    LoginSerializer,
+    ChangePasswordSerializer,
+)
 from helpers.mixins import RecombeeUserMixin, RecombeeNetworkError
 
 
@@ -39,8 +43,9 @@ class RegisterAPIView(GenericAPIView, RecombeeUserMixin):
         if serializer.is_valid():
             serializer.save()
             if self.set_recombee_user(serializer.instance, True) == 1:
-
-                return response.Response(serializer.data, status=status.HTTP_201_CREATED)
+                return response.Response(
+                    serializer.data, status=status.HTTP_201_CREATED
+                )
             else:
                 serializer.instance.delete()
                 return RecombeeNetworkError.recombee_network_error()
@@ -68,16 +73,20 @@ class ChangePasswordAPIView(GenericAPIView):
 
     """
 
-    permission_classes = [permissions.IsAuthenticated, ]
+    permission_classes = [
+        permissions.IsAuthenticated,
+    ]
     serializer_class = ChangePasswordSerializer
 
     def put(self, request, **kwargs):
         instance = User.objects.get(email=request.user.email)
-        serializer = self.serializer_class(instance, data=request.data, context={'request': request})
+        serializer = self.serializer_class(
+            instance, data=request.data, context={"request": request}
+        )
 
         if serializer.is_valid():
             serializer.save()
-            return response.Response('Success', status=status.HTTP_200_OK)
+            return response.Response("Success", status=status.HTTP_200_OK)
 
         return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -101,13 +110,14 @@ class LoginAPIView(GenericAPIView):
                 Response: Đối tượng phản hồi HTTP với dữ liệu người dùng hoặc thông báo lỗi.
 
     """
+
     authentication_classes = []
 
     serializer_class = LoginSerializer
 
     def post(self, request):
-        email = request.data.get('email', None)
-        password = request.data.get('password', None)
+        email = str(request.data.get("email", None)).lower()
+        password = request.data.get("password", None)
 
         user = authenticate(username=email, password=password)
 
@@ -115,4 +125,6 @@ class LoginAPIView(GenericAPIView):
             serializer = self.serializer_class(user)
 
             return response.Response(serializer.data, status=status.HTTP_200_OK)
-        return response.Response({'message': "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+        return response.Response(
+            {"message": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED
+        )
