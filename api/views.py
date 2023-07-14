@@ -259,6 +259,8 @@ class ProductDetailAPIView(
             return CreateProductSerializer
 
     def update(self, request, *args, **kwargs):
+        if request.user.is_superuser or request.user.is_staff:
+            super().update(request, args, kwargs)
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
@@ -779,6 +781,9 @@ class UserUpdateProfileAPIView(UpdateAPIView, RecombeeUserMixin):
         return obj
 
     def update(self, request, *args, **kwargs):
+        if request.user.is_superuser or request.user.is_staff:
+            super().update(request, args, kwargs)
+            
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
