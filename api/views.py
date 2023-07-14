@@ -70,6 +70,7 @@ from .models import (
     CartItem,
     FavoriteItem,
     Voucher,
+    UsedVoucher,
     OrderDetail,
 )
 from rest_framework.response import Response
@@ -593,9 +594,9 @@ class OrderDetailAPIView(RetrieveUpdateAPIView, RecombeeUserMixin):
     def get_object(self):
         obj = super().get_object()
         if (
-            obj.created_by != self.request.user
-            and not self.request.user.is_staff
-            and not self.request.user.is_superuser
+                obj.created_by != self.request.user
+                and not self.request.user.is_staff
+                and not self.request.user.is_superuser
         ):
             raise PermissionDenied("You do not have permission to access this order.")
 
@@ -720,10 +721,10 @@ class ReviewDetailAPIView(
 
         review = serializer.instance
         if (
-            self.set_recombee_item(
-                review.product, review=review.rating, old_review=old_rating
-            )
-            == 1
+                self.set_recombee_item(
+                    review.product, review=review.rating, old_review=old_rating
+                )
+                == 1
         ):
             return Response(serializer.data)
         else:
@@ -1610,9 +1611,16 @@ class GetVoucherFromCodeView(RetrieveAPIView):
     serializer_class = VoucherSerializer
     permission_classes = (IsAuthenticated,)
 
+    def check_used(self, voucher: Voucher):
+        return UsedVoucher.objects.filter(voucher_id=voucher.id, user_id=self.request.user.id).exists()
+
     def get_object(self):
         code = self.request.query_params.get("code")
         instance = Voucher.objects.filter(code=code).first()
+
+        if self.check_used(instance):
+            raise serializers.ValidationError('Voucher is already used')
+
         current_time = timezone.now().date()
         if instance.from_date > current_time or instance.to_date < current_time:
             raise serializers.ValidationError("Voucher is expired")
